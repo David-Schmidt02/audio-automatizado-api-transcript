@@ -26,6 +26,8 @@ class JitterBuffer:
             self.expected_timestamp = timestamp
 
     def ready_to_consume(self):
+        log_and_save(f"Evaluando estado del Jitter Buffer", "DEBUG", self.ssrc)
+        log_and_save(f"[JitterBuffer] Tamaño actual del buffer: {len(self.buffer)}", "DEBUG", self.ssrc)
         if not self.prefill_done and len(self.buffer) >= self.prefill_min:
             self.prefill_done = True
             log_and_save(f"[JitterBuffer] Prefill completado con {len(self.buffer)} paquetes", "INFO", self.ssrc)
