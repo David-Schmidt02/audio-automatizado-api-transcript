@@ -19,7 +19,7 @@ class RTP_Client:
         self.ssrc = ssrc
         self.jitter_buffer = JitterBuffer()
         self.shutdown_event = shutdown_event
-        self.thread_worker = threading.Thread(target=self.start_worker_client, args=(shutdown_event), daemon=True)
+        self.thread_worker = threading.Thread(target=self.start_worker_client, args=(shutdown_event,), daemon=True)
 
         self.channel_name = None
         self.client_dir = None
@@ -82,6 +82,7 @@ class RTP_Client:
         return sequence_number
     
     def send_to_jitter(self, rtp_packet):
+        log_and_save(f"📤 Enviado paquete RTP: {rtp_packet.sequenceNumber}", "DEBUG", self.ssrc)
         self.jitter_buffer.add_packet(rtp_packet.sequenceNumber, time.time(), rtp_packet.payload)
 
     def create_rtp_packet(self, payload, sequence_number, ssrc):
