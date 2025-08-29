@@ -9,7 +9,8 @@ from config import JITTER_BUFFER_SIZE, MAX_WAIT, FRAME_SIZE, JITTER_BUFFER_SIZE
 
 
 class JitterBuffer:
-    def __init__(self, jt_bf_size = JITTER_BUFFER_SIZE, max_wait=0.5):
+    def __init__(self, ssrc, jt_bf_size = JITTER_BUFFER_SIZE, max_wait=0.5):
+        self.ssrc = ssrc
         self.buffer = {}  # seq_num -> (timestamp, payload)
         self.prefill_min = JITTER_BUFFER_SIZE
         self.prefill_done = False
@@ -18,7 +19,7 @@ class JitterBuffer:
         self.expected_timestamp = None
 
     def add_packet(self, seq_num, timestamp, payload):
-        log_and_save(f"[JitterBuffer] Paquete añadido: {seq_num}", "DEBUG")
+        log_and_save(f"[JitterBuffer] Paquete añadido: {seq_num}", "DEBUG", self.ssrc)
         self.buffer[seq_num] = (timestamp, payload)
         # Opcional: actualizar expected_timestamp si es el primer paquete
         if self.expected_timestamp is None:
@@ -27,7 +28,7 @@ class JitterBuffer:
     def ready_to_consume(self):
         if not self.prefill_done and len(self.buffer) >= self.prefill_min:
             self.prefill_done = True
-            log_and_save(f"[JitterBuffer] Prefill completado con {len(self.buffer)} paquetes", "INFO")
+            log_and_save(f"[JitterBuffer] Prefill completado con {len(self.buffer)} paquetes", "INFO", self.ssrc)
         return self.prefill_done
 
     def pop_next(self, next_seq):
@@ -65,6 +66,6 @@ def check_prefill(buffer, prefill_done, client_id):
     Verifica si el pre-llenado del jitter buffer ha sido completado.
     """
     if not prefill_done and len(buffer) > 0:
-        log_and_save(f"[JitterBuffer] Cliente {client_id}: pre-llenado completado con {len(buffer)} paquetes", "INFO")
+        log_and_save(f"[JitterBuffer] Cliente {client_id}: pre-llenado completado con {len(buffer)} paquetes", "INFO", client_id)
         return True
     return prefill_done

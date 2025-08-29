@@ -17,7 +17,7 @@ from config import FRAME_SIZE, RTP_VERSION, DEST_IP, DEST_PORT, CHANNELS, SAMPLE
 class RTP_Client:
     def __init__(self, ssrc, shutdown_event=None):
         self.ssrc = ssrc
-        self.jitter_buffer = JitterBuffer()
+        self.jitter_buffer = JitterBuffer(ssrc)
         self.shutdown_event = shutdown_event
         self.thread_worker = threading.Thread(target=self.start_worker_client, args=(shutdown_event,), daemon=True)
 
