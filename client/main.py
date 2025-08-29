@@ -106,11 +106,11 @@ def main():
     id_instance = random.randint(10000, 100000)
 
     # Controlador de rtp del cliente
-    log_and_save(f"Iniciando cliente RTP que procesa sus propios wav", "INFO")
+    log_and_save(f"Iniciando cliente RTP que procesa sus propios wav", "INFO", id_instance)
     rtp_client = RTP_Client(id_instance, shutdown_event)
 
     # Controlador de sesión de audio
-    log_and_save(f"Iniciando sesión de audio para cliente RTP con SSRC: {id_instance}", "INFO")
+    log_and_save(f"Iniciando sesión de audio para cliente RTP con SSRC: {id_instance}", "INFO", id_instance)
     audio_client_session = RecordClient(rtp_client, id_instance)
 
     # Configurar señales para cleanup
