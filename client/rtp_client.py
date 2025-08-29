@@ -19,7 +19,7 @@ class RTP_Client:
         self.ssrc = ssrc
         self.jitter_buffer = JitterBuffer()
         self.shutdown_event = shutdown_event
-        self.thread_worker = threading.Thread(target=self.start_worker_client, args=(ssrc, shutdown_event), daemon=True)
+        self.thread_worker = threading.Thread(target=self.start_worker_client, args=(shutdown_event), daemon=True)
 
         self.channel_name = None
         self.client_dir = None
@@ -102,15 +102,15 @@ class RTP_Client:
         )
         return rtp_packet
 
-    def start_worker_client(self, ssrc, shutdown_event=None):
-        log_and_save(f"[Worker] Iniciado para cliente con SSRC: {ssrc}", "INFO")
+    def start_worker_client(self, shutdown_event=None):
+        log_and_save(f"[Worker] Iniciado para cliente con SSRC: {self.ssrc}", "INFO")
         jitter_buffer = self.jitter_buffer
         if shutdown_event is None:
             shutdown_event = getattr(self, 'shutdown_event', None)
 
         while True:
             if shutdown_event and shutdown_event.is_set():
-                log_and_save(f"[Worker] Shutdown event detectado. Cerrando worker SSRC: {ssrc}", "INFO")
+                log_and_save(f"[Worker] Shutdown event detectado. Cerrando worker SSRC: {self.ssrc}", "INFO")
                 break
             with self.lock:
                 # Esperar a que el jitter buffer tenga prefill suficiente

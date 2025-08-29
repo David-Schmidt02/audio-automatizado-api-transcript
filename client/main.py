@@ -106,9 +106,11 @@ def main():
     id_instance = random.randint(10000, 100000)
 
     # Controlador de rtp del cliente
-    rtp_client = RTP_Client(ssrc=id_instance, shutdown_event=shutdown_event)
+    log_and_save(f"Iniciando cliente RTP que procesa sus propios wav", "INFO")
+    rtp_client = RTP_Client(id_instance, shutdown_event)
 
     # Controlador de sesión de audio
+    log_and_save(f"Iniciando sesión de audio para cliente RTP con SSRC: {id_instance}", "INFO")
     audio_client_session = RecordClient(rtp_client, id_instance)
 
     # Configurar señales para cleanup
@@ -180,6 +182,7 @@ def main():
 
 
     # 7. Iniciar worker del cliente (tambien el jitter buffer)
+    log_and_save("🔄 Iniciando worker del cliente RTP...", "INFO", id_instance)
     thread_worker_client = rtp_client.thread_worker
     thread_worker_client.start()
 

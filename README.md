@@ -65,8 +65,8 @@ source audio-test-env/bin/activate
 
 ```bash
 # (Asegúrate de tener el entorno virtual activado)
-git clone https://github.com/David-Schmidt02/audio-automatizado-testing-v4.git
-cd audio-automatizado-testing-v4
+git clone https://github.com/David-Schmidt02/audio-automatizado-api-transcript.git
+cd audio-automatizado-api-transcript
 ```
 
 ### 4. Instalar dependencias del sistema
@@ -88,7 +88,7 @@ pip install -r requirements.txt
 ## 📁 Estructura del Proyecto
 
 ```
-audio-automatizado-testing-v4/
+audio-automatizado-api-transcript/
 ├── README.md                    # Documentación principal
 ├── my_logger.py                 # Sistema de logging con colores
 ├── client/                      # 🖥️ Cliente (captura, procesamiento y envío)
