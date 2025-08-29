@@ -164,7 +164,7 @@ class RTP_Client:
     def send_to_whisper(self, wav_path: str):
         import requests
 
-        url = "http://172.20.100.32:8007/transcribe"  # ajusta el puerto/path real
+        url = "http://172.20.100.32:8001/transcribe"  # ajusta el puerto/path real
 
         """params = {
             "model_path": "/home/soflex/servicios/t_whisper/whisper-v3-turbo-es-ar/checkpoint-14000",
