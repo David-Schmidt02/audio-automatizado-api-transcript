@@ -48,13 +48,13 @@ class RTP_Client:
         self.client_dir = os.path.join(base_dir, channel_name)
         if not os.path.exists(self.client_dir):
             os.makedirs(self.client_dir)
-            log_and_save(f"📂 Creando directorio para canal: {channel_name}", "ERROR")
+            log_and_save(f"📂 Creando directorio para canal: {channel_name}", "ERROR", self.ssrc)
         name_wav = os.path.join(self.client_dir, f"record-{time.strftime('%Y%m%d-%H%M%S')}-{ssrc}-{channel_name}-{wav_index}.wav")
         wf = wave.open(name_wav, "wb")
         wf.setnchannels(CHANNELS)
         wf.setsampwidth(2)
         wf.setframerate(SAMPLE_RATE)
-        log_and_save(f"💾 [Cliente {ssrc}] WAV abierto: {name_wav}", "INFO")
+        log_and_save(f"💾 [Cliente {ssrc}] WAV abierto: {name_wav}", "INFO", self.ssrc)
         return wf
 
     def extract_channel_name(self, url):
@@ -76,7 +76,7 @@ class RTP_Client:
             rtp_packet = self.create_rtp_packet(bytearray(frame), sequence_number, ssrc)
             self.send_to_jitter(rtp_packet)
             if sequence_number % 50 == 0:
-                log_and_save(f"📤 Enviado paquete seq {sequence_number} (raw stream)", "DEBUG", ssrc)
+                log_and_save(f"📤 Enviado paquete seq {sequence_number} (raw stream)", "DEBUG", self.ssrc)
             sequence_number = (sequence_number + 1) % 65536
             offset += frame_bytes
         return sequence_number
