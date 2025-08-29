@@ -1,22 +1,28 @@
-# Audio Automatizado Testing v4 - Instalación Modular y Sistema RTP
 
-Sistema automatizado para grabar audio desde streams de video y transmitirlo en tiempo real usando **RTP**. Incluye automatización de navegador, captura de audio, segmentación y almacenamiento, pensado para Ubuntu Server 24.04+ y compatible con Windows en el lado servidor.
+# Audio Automatizado Testing v4 - Cliente Pesado y Sistema RTP
+
+Sistema automatizado para grabar audio desde streams de video, procesar y segmentar localmente en el cliente, y transmitir en tiempo real usando **RTP**. Incluye automatización de navegador, captura de audio, jitter buffer, segmentación y almacenamiento robusto, pensado para Ubuntu Server 24.04+ y compatible con Windows en el lado servidor.
 
 ---
 
 ## 🏗️ Arquitectura del Sistema
 
+
 ```
-Cliente (Linux)          Api Transcripciones (Linux/Windows)
-┌─────────────────┐     ┌─────────────────────┐
-│   Chromium/Chrome│     │                     │
-│   ↓             │     │   UDP Socket        │
-│   PulseAudio    │     │   ↓                 │
-│   ↓             │────▶│   RTP Parser        │
-│   FFmpeg        │     │   ↓                 │
-│   ↓             │     │   WAV Generator     │
-│   RTP Client    │     │   (por SSRC)        │
-└─────────────────┘     └─────────────────────┘
+Cliente (Linux)
+┌──────────────────────────────┐
+│ Chromium/Chrome (Navegador) │
+│ ↓                            │
+│ PulseAudio                   │
+│ ↓                            │
+│ FFmpeg/Parec (grabación)     │
+│ ↓                            │
+│ JitterBuffer (acumulación y reordenamiento) │
+│ ↓                            │
+│ Worker (procesa y segmenta)  │
+│ ↓                            │
+│ Archivos WAV locales         │
+└──────────────────────────────┘
 ```
 
 ---
@@ -28,7 +34,7 @@ Cliente (Linux)          Api Transcripciones (Linux/Windows)
 - **Python 3.12+** y **python3.12-venv**
 - **Chromium** o **Google Chrome**
 - **PulseAudio**
-- **FFmpeg**
+- **FFmpeg** o **parec**
 - **Git**
 
 ### Servidor (Linux/Windows)
@@ -85,27 +91,31 @@ pip install -r requirements.txt
 audio-automatizado-testing-v4/
 ├── README.md                    # Documentación principal
 ├── my_logger.py                 # Sistema de logging con colores
-├── client/                      # 🖥️ Cliente (captura y envío)
+├── client/                      # 🖥️ Cliente (captura, procesamiento y envío)
 │   ├── main.py                  # Script principal del cliente
-│   ├── audio_recorder.py        # Grabación con FFmpeg y segmentación
-│   └── rtp_client.py            # Creación y envío de paquetes RTP
-├── server/                      # 🌐 Servidor (recepción y almacenamiento)
-│   └── main.py                  # Receptor RTP y generador de WAV
+│   ├── audio_client_session.py  # Lógica de grabación y control de sesión
+│   ├── rtp_client.py            # JitterBuffer, segmentación y envío RTP
+│   ├── navigator_manager.py     # Automatización de navegador
+│   └── levantar_varios_clientes.py # Multi-instancia
 ├── scripts/
 │   └── setup.sh                 # Instalador automatizado (opcional)
 ├── requirements.txt             # Dependencias Python
-└── config.py, my_logger.py, ...
+├── config.py                    # Configuración global
+└── ...
 ```
 
 ---
 
+
 ## ⚙️ Características Técnicas
 
 - **Audio**: 48kHz, 16-bit, Mono
-- **RTP**: PayloadType DYNAMIC_96, frames de 160 samples
-- **Streaming**: UDP en tiempo real, identificación por SSRC
-- **Archivos**: WAV automáticos cada 240 paquetes (~5 segundos)
+- **JitterBuffer**: Acumulación, reordenamiento y tolerancia a jitter/red
+- **Segmentación**: Archivos WAV automáticos cada 5 segundos
+- **Procesamiento local**: Todo el flujo (grabación, buffer, segmentación, almacenamiento) ocurre en el cliente
 - **Multi-cliente**: Soporte simultáneo por SSRC
+- **Limpieza robusta**: Todos los recursos y threads se liberan correctamente al shutdown o inactividad
+- **Sin transmisión RTP a servidor externo**: No se envían paquetes RTP fuera del cliente, todo es procesamiento interno
 
 ---
 
@@ -122,7 +132,7 @@ python main.py
 ```bash
 cd client/
 python main.py "https://stream-url.com/live" "ffmpeg/parec"
-# Podrías levantar varios clientes con:
+# Para múltiples clientes:
 python levantar_varios_clientes.py "https://stream-url.com/live" "ffmpeg/parec"
 ```
 
@@ -130,12 +140,15 @@ python levantar_varios_clientes.py "https://stream-url.com/live" "ffmpeg/parec"
 
 ## 🔧 Configuración Rápida
 
-### Cliente (`client/rtp_client.py`)
+### Cliente (`client/config.py`)
 ```python
 DEST_IP = "<IP del servidor>"
 DEST_PORT = 6001
 FRAME_SIZE = 960
 SAMPLE_RATE = 48000
+JITTER_BUFFER_SIZE = 25  # ms de prefill
+WAV_SEGMENT_SECONDS = 5
+INACTIVITY_TIMEOUT = 3
 ```
 
 ### Servidor (`server/main.py`)
@@ -184,15 +197,13 @@ export MOZ_DISABLE_CONTENT_SANDBOX=1
 
 ## 🔄 Flujo de Datos
 
-1. **Cliente**: Chromium/Chrome reproduce stream → PulseAudio captura → FFmpeg segmenta → RTP envía
-2. **Red**: Paquetes RTP via UDP
-3. **Servidor**: Recibe RTP → Extrae payload → Agrupa por SSRC → Genera WAV
+1. **Cliente**: Chromium/Chrome reproduce stream → PulseAudio captura → FFmpeg/Parec graba → JitterBuffer acumula y reordena → Worker procesa y segmenta → Archivos WAV locales
 
 ---
 
 ## 📈 Rendimiento
 
-- **Latencia**: ~160ms (frame size + red)
+- **Latencia**: ~200ms (prefill jitter + red)
 - **Throughput**: ~384 kbps por cliente (48kHz * 16bit * 1ch)
 - **Clientes simultáneos**: Limitado por ancho de banda y CPU
 
@@ -203,6 +214,7 @@ export MOZ_DISABLE_CONTENT_SANDBOX=1
 - Siempre activa el entorno virtual antes de instalar o ejecutar scripts Python.
 - El script `setup.sh` puede automatizar la instalación en sistemas compatibles.
 - Para personalizaciones, revisa los archivos de configuración y los scripts en `client/` y `server/`.
+- El cliente ahora es responsable de la grabación, jitter buffer, segmentación y limpieza de recursos.
 
 ---
 

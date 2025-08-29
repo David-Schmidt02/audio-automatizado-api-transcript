@@ -2,13 +2,9 @@ import os
 import random
 import subprocess
 import sys
-import tempfile
 import threading
-import time
-
 
 from rtp_client import RTP_Client
-from rtp_client import send_rtp_stream_to_server 
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, parent_dir)
 
@@ -17,9 +13,9 @@ from config import BUFFER_SIZE
 FRAME_BYTES = 1920
 
 class RecordClient:
-    def __init__(self, client, id_instance):
+    def __init__(self, client: RTP_Client, id_instance):
 
-        self.client = client
+        self.client: RTP_Client = client
         self.sink_name = None
         self.module_id = None
         self.recording_thread = None

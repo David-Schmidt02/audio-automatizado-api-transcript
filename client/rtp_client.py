@@ -1,9 +1,9 @@
 import gc
-import socket
 import os
 import sys
 from rtp import RTP, PayloadType
-
+import threading
+import time
 from jitter_buffer import JitterBuffer
 
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -12,11 +12,6 @@ from my_logger import log_and_save
 from config import FRAME_SIZE, RTP_VERSION, DEST_IP, DEST_PORT, CHANNELS, SAMPLE_RATE, WAV_SEGMENT_SECONDS, INACTIVITY_TIMEOUT
 # PAYLOAD_TYPE termina sobreescribiendose con el de la clase de la libreria rtp
 # Configuración RTP
-
-sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
-import threading
-import time
 
 
 class RTP_Client:

@@ -32,26 +32,6 @@ def signal_handler(sig, frame):
         shutdown_event.set()
 
 
-def return_display_number(ssrc):
-    import socket
-    import json
-    msg = json.dumps({"cmd": "GET_DISPLAY_NUM", "ssrc": ssrc})
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.sendto(msg.encode(), (DEST_IP, NUM_DISPLAY_PORT))
-    log_and_save(f"🖥️ Display solicitado por el cliente: {ssrc}", "INFO", ssrc)
-    try:
-        data, _ = sock.recvfrom(1024)  # Espera la respuesta del servidor
-        display_num = int(data.decode())
-        log_and_save(f"✅ Display asignado por el servidor: :{display_num}", "INFO", ssrc)
-        display_str = f":{display_num}"
-        sock.close()
-        return display_str
-    except socket.timeout:
-        log_and_save("❌ No se recibió respuesta del servidor para el display", "ERROR", ssrc)
-        sock.close()
-        return None
-
-
 def monitor_browser_process(browser_process, max_ram_mb=500, max_runtime_sec=7200):
     import psutil
     start_time = time.time()
