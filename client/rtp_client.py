@@ -189,9 +189,11 @@ class RTP_Client:
 
         if response.status_code == 200:
             data = response.json()
-            print("---"*20)
             print(f"\n✅ Transcripción completa de {wav_path}:")
+            print("---"*20)
+            print("---"*20)
             print(data.get("transcription", ""))
+            print("---"*20)
             print("---"*20)
 
         else:
