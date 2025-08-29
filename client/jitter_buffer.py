@@ -19,7 +19,7 @@ class JitterBuffer:
         self.expected_timestamp = None
 
     def add_packet(self, seq_num, timestamp, payload):
-        if seq_num % 100 == 0:
+        if seq_num % 1000 == 0:
             log_and_save(f"[JitterBuffer] Paquete N° {seq_num} añadido", "DEBUG", self.ssrc)
             log_and_save(f"[JitterBuffer] Tamaño del buffer tras añadir: {len(self.buffer)}", "DEBUG", self.ssrc)
         self.buffer[seq_num] = (timestamp, payload)

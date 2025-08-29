@@ -77,7 +77,7 @@ class RTP_Client:
                 break
             rtp_packet = self.create_rtp_packet(bytearray(frame), sequence_number, ssrc)
             self.send_to_jitter(rtp_packet)
-            if sequence_number % 50 == 0:
+            if sequence_number % 1000 == 0:
                 log_and_save(f"📤 Enviado paquete seq {sequence_number} (raw stream)", "DEBUG", self.ssrc)
             sequence_number = (sequence_number + 1) % 65536
             offset += frame_bytes
@@ -86,7 +86,7 @@ class RTP_Client:
     def send_to_jitter(self, rtp_packet):
         if self.last_time is None:
             self.last_time = time.time()
-        if rtp_packet.sequenceNumber % 100 == 0:
+        if rtp_packet.sequenceNumber % 1000 == 0:
             log_and_save(f"📤 Enviado paquete RTP: {rtp_packet.sequenceNumber}", "DEBUG", self.ssrc)
         self.jitter_buffer.add_packet(rtp_packet.sequenceNumber, time.time(), rtp_packet.payload)
 
