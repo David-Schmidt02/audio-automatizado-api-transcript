@@ -188,10 +188,6 @@ class RTP_Client:
             print(f"\n✅ Transcripción completa de {wav_path}:")
             print(data.get("transcription", ""))
 
-            if "segments" in data:
-                texto_completo = " ".join(seg.get("text", "") for seg in data["segments"])
-                print(texto_completo)
-
         else:
             print(f"❌ Error {response.status_code}: {response.text}")
 
