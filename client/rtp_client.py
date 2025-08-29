@@ -110,14 +110,17 @@ class RTP_Client:
             shutdown_event = getattr(self, 'shutdown_event', None)
 
         while True:
+            print("Primera iteracion dentro del bucle")
             if shutdown_event and shutdown_event.is_set():
                 log_and_save(f"[Worker] Shutdown event detectado. Cerrando worker SSRC: {self.ssrc}", "INFO", self.ssrc)
                 break
             log_and_save(f"[Worker] Esperando paquetes en el Jitter Buffer para SSRC: {self.ssrc}", "DEBUG", self.ssrc)
             with self.lock:
+                print("Segunda iteracion dentro del lock")
                 # Esperar a que el jitter buffer tenga prefill suficiente
                 if not jitter_buffer.ready_to_consume():
                     log_and_save(f"Esperando prefill del Jitter Buffer...", "DEBUG", self.ssrc)
+                    print("Tercera iteracion dentro de la evaluacion del Jitter, no está listo para consumir")
                     if self.handle_inactivity(self.ssrc):
                         break
                     time.sleep(0.005)
@@ -125,7 +128,9 @@ class RTP_Client:
                         
                 next_seq = self.next_seq
                 # Procesar paquetes SOLO mientras el buffer siga listo para consumir
+                print("Cuarta iteracion dentro antes del while que se entra si el jitter está listo")
                 while jitter_buffer.ready_to_consume():
+                    print("Jitter listo ")
                     packet = jitter_buffer.pop_next(next_seq)
                     if packet is None:
                         break
@@ -150,6 +155,7 @@ class RTP_Client:
 
                 if self.handle_inactivity(self.ssrc):
                     break
+                print("Quinta iteracion dentro del bucle y fuera del lock")
             time.sleep(0.005)
     
     def cleanup(self):
@@ -170,6 +176,7 @@ class RTP_Client:
         """
         if time.time() - self.last_time > INACTIVITY_TIMEOUT:
             try:
+                log_and_save(f"[Worker] Cliente {self.ssrc} inactivo por {INACTIVITY_TIMEOUT}s, cerrando recursos.", "INFO", self.ssrc)
                 self.cleanup()
                 log_and_save(f"[Worker] Cliente {self.ssrc} inactivo por {INACTIVITY_TIMEOUT}s, recursos liberados.", "INFO", self.ssrc)
             except Exception as e:
