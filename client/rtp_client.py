@@ -184,7 +184,7 @@ class RTP_Client:
                 print("📍 Segmentos:")
                 for i, seg in enumerate(data["segments"], start=1):
                     print(f"   [{i}] {seg}")
-                self.juntar_segmentos_imprimir(data["segments"])
+                #self.juntar_segmentos_imprimir(data["segments"])
         else:
             print(f"❌ Error {response.status_code}: {response.text}")
 
