@@ -142,6 +142,7 @@ class RTP_Client:
                         if self.wav_path:
                             self.send_to_whisper(self.wav_path)
                             log_and_save(f"✅ Enviado {self.wav_path} para transcripción.", "INFO", self.ssrc)
+                            # Eliminacion del wavefile
                         self.wavefile = None
                         self.wav_path = None
                         gc.collect()
@@ -164,8 +165,8 @@ class RTP_Client:
     def send_to_whisper(self, wav_path: str):
         import requests
 
-        url = "http://172.20.100.32:8001/transcribe"  # ajusta el puerto/path real
-
+        url = "http://172.20.100.32:8001/transcribe"  # Canary
+        # url = "http://172.20.100.32:8001/transcribe" #
         """params = {
             "model_path": "/home/soflex/servicios/t_whisper/whisper-v3-turbo-es-ar/checkpoint-14000",
             "language": "Spanish"
@@ -188,10 +189,9 @@ class RTP_Client:
             print(data.get("transcription", ""))
 
             if "segments" in data:
-                print("📍 Segmentos:")
-                for i, seg in enumerate(data["segments"], start=1):
-                    print(f"   [{i}] {seg}")
-                #self.juntar_segmentos_imprimir(data["segments"])
+                texto_completo = " ".join(seg.get("text", "") for seg in data["segments"])
+                print(texto_completo)
+
         else:
             print(f"❌ Error {response.status_code}: {response.text}")
 
