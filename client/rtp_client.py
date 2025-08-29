@@ -163,6 +163,7 @@ class RTP_Client:
     
     def send_to_whisper(self, wav_path: str):
         import requests
+        import os
 
         url = "http://172.20.100.32:8001/transcribe"  # ajusta el puerto/path real
 
@@ -184,6 +185,10 @@ class RTP_Client:
                 self.juntar_segmentos_imprimir(data["segments"])
         else:
             print(f"❌ Error {response.status_code}: {response.text}")
+
+        # Eliminar el archivo WAV después de enviarlo a Whisper
+        os.remove(wav_path)
+        log_and_save(f"🗑️ Archivo WAV eliminado: {wav_path}", "INFO", self.ssrc)
 
     def juntar_segmentos_imprimir(self, segmentos):
         """Imprime los segmentos de audio transcritos."""
