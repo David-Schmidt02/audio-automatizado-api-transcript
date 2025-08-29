@@ -166,9 +166,16 @@ class RTP_Client:
 
         url = "http://172.20.100.32:8007/transcribe"  # ajusta el puerto/path real
 
-        params = {
+        """params = {
             "model_path": "/home/soflex/servicios/t_whisper/whisper-v3-turbo-es-ar/checkpoint-14000",
             "language": "Spanish"
+        }"""
+        params = {
+            "source_language": "es",
+            "target_language": "es",
+            "task": "asr",
+            "model": "v2",
+            # "gpu_id": "0"  # solo si quieres especificar GPU
         }
 
         with open(wav_path, "rb") as f:
