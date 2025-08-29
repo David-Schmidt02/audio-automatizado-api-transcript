@@ -28,9 +28,9 @@ class RTP_Client:
         self.next_seq = 0
         self.last_time = None
 
-        self.wavefile = None
-        self.wav_path = None
+        self.wavefile = self.create_wav_file(self.ssrc, wav_index=self.wav_index)
         self.wav_start_time = None
+
         self.wav_index = 0
 
     def rotate_wav_file(self,):
