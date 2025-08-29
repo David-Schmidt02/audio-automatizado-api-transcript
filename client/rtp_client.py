@@ -84,7 +84,8 @@ class RTP_Client:
     def send_to_jitter(self, rtp_packet):
         if self.last_time is None:
             self.last_time = time.time()
-        log_and_save(f"📤 Enviado paquete RTP: {rtp_packet.sequenceNumber}", "DEBUG", self.ssrc)
+        if rtp_packet.sequenceNumber % 100 == 0:
+            log_and_save(f"📤 Enviado paquete RTP: {rtp_packet.sequenceNumber}", "DEBUG", self.ssrc)
         self.jitter_buffer.add_packet(rtp_packet.sequenceNumber, time.time(), rtp_packet.payload)
 
     def create_rtp_packet(self, payload, sequence_number, ssrc):
@@ -110,7 +111,7 @@ class RTP_Client:
         jitter_buffer = self.jitter_buffer
         if shutdown_event is None:
             shutdown_event = getattr(self, 'shutdown_event', None)
-
+        self.wav_start_time = time.time()
         while True:
             if shutdown_event and shutdown_event.is_set():
                 log_and_save(f"[Worker] Shutdown event detectado. Cerrando worker SSRC: {self.ssrc}", "INFO", self.ssrc)
