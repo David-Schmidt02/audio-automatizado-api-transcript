@@ -151,12 +151,14 @@ class RTP_Client:
                     if not packet.get("is_silence", False):
                         self.last_time = now
                     next_seq = (next_seq + 1) % 65536
+                print("Saliendo del bucle de procesamiento de paquetes")
                 self.next_seq = next_seq
 
                 if self.handle_inactivity(self.ssrc):
                     break
-                print("Quinta iteracion dentro del bucle y fuera del lock")
+                print("Quinta iteracion antes de salir del lock")
             time.sleep(0.005)
+            print("Quinta iteracion dentro del bucle y fuera del lock")
     
     def cleanup(self):
         """Cierra archivos y libera recursos del cliente RTP."""
