@@ -136,9 +136,12 @@ class RTP_Client:
                     now = time.time()
                     # Lógica de segmentación WAV por tiempo
                     if now - self.wav_start_time >= WAV_SEGMENT_SECONDS:
+                        print("DEBUG: enviando a Whisper:", self.wav_path)
                         if self.wavefile:
                             self.wavefile.close()
-                        self.send_to_whisper(self.wav_path)
+                        if self.wav_path:
+                            self.send_to_whisper(self.wav_path)
+                            log_and_save(f"✅ Enviado {self.wav_path} para transcripción.", "INFO", self.ssrc)
                         self.wavefile = None
                         self.wav_path = None
                         gc.collect()
