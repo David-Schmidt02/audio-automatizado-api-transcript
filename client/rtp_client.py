@@ -26,10 +26,10 @@ class RTP_Client:
 
         self.lock = threading.Lock()
         self.next_seq = 0
-        self.last_time = time.time()
+        self.last_time = None
 
         self.wavefile = None
-        self.wav_start_time = time.time()
+        self.wav_start_time = None
         self.wav_index = 0
 
     def rotate_wav_file(self,):
@@ -82,6 +82,8 @@ class RTP_Client:
         return sequence_number
     
     def send_to_jitter(self, rtp_packet):
+        if self.last_time is None:
+            self.last_time = time.time()
         log_and_save(f"📤 Enviado paquete RTP: {rtp_packet.sequenceNumber}", "DEBUG", self.ssrc)
         self.jitter_buffer.add_packet(rtp_packet.sequenceNumber, time.time(), rtp_packet.payload)
 
@@ -110,17 +112,14 @@ class RTP_Client:
             shutdown_event = getattr(self, 'shutdown_event', None)
 
         while True:
-            print("Primera iteracion dentro del bucle")
             if shutdown_event and shutdown_event.is_set():
                 log_and_save(f"[Worker] Shutdown event detectado. Cerrando worker SSRC: {self.ssrc}", "INFO", self.ssrc)
                 break
             log_and_save(f"[Worker] Esperando paquetes en el Jitter Buffer para SSRC: {self.ssrc}", "DEBUG", self.ssrc)
             with self.lock:
-                print("Segunda iteracion dentro del lock")
                 # Esperar a que el jitter buffer tenga prefill suficiente
                 if not jitter_buffer.ready_to_consume():
                     log_and_save(f"Esperando prefill del Jitter Buffer...", "DEBUG", self.ssrc)
-                    print("Tercera iteracion dentro de la evaluacion del Jitter, no está listo para consumir")
                     if self.handle_inactivity(self.ssrc):
                         break
                     time.sleep(0.005)
@@ -128,9 +127,7 @@ class RTP_Client:
                         
                 next_seq = self.next_seq
                 # Procesar paquetes SOLO mientras el buffer siga listo para consumir
-                print("Cuarta iteracion dentro antes del while que se entra si el jitter está listo")
                 while jitter_buffer.ready_to_consume():
-                    print("Jitter listo ")
                     packet = jitter_buffer.pop_next(next_seq)
                     if packet is None:
                         break
@@ -151,14 +148,11 @@ class RTP_Client:
                     if not packet.get("is_silence", False):
                         self.last_time = now
                     next_seq = (next_seq + 1) % 65536
-                print("Saliendo del bucle de procesamiento de paquetes")
                 self.next_seq = next_seq
 
                 if self.handle_inactivity(self.ssrc):
                     break
-                print("Quinta iteracion antes de salir del lock")
             time.sleep(0.005)
-            print("Quinta iteracion dentro del bucle y fuera del lock")
     
     def cleanup(self):
         """Cierra archivos y libera recursos del cliente RTP."""
@@ -176,6 +170,8 @@ class RTP_Client:
         """
         Maneja la inactividad de un cliente, cerrando su archivo WAV si ha estado inactivo durante más de INACTIVITY_TIMEOUT segundos.
         """
+        if self.last_time is None:
+            return False
         if time.time() - self.last_time > INACTIVITY_TIMEOUT:
             try:
                 log_and_save(f"[Worker] Cliente {self.ssrc} inactivo por {INACTIVITY_TIMEOUT}s, cerrando recursos.", "INFO", self.ssrc)
