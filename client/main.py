@@ -174,7 +174,7 @@ def main():
     
     # 6.1 Iniciar Hilo que controla los mb del browser
     log_and_save("🔍 Iniciando monitor de uso de RAM del navegador...", "INFO", id_instance)
-    thread_monitor_browser = threading.Thread(target=monitor_browser_process, args=(navigator_process, 1000, 250))
+    thread_monitor_browser = threading.Thread(target=monitor_browser_process, args=(navigator_process, 1000, 21600))
     thread_monitor_browser.start()
 
     log_and_save("🎯 System initialized successfully!", "INFO", id_instance)
