@@ -29,6 +29,7 @@ class RTP_Client:
         self.last_time = None
 
         self.wavefile = None
+        self.wav_path = None
         self.wav_start_time = None
         self.wav_index = 0
 
@@ -55,6 +56,7 @@ class RTP_Client:
         wf.setsampwidth(2)
         wf.setframerate(SAMPLE_RATE)
         log_and_save(f"💾 [Cliente {ssrc}] WAV abierto: {name_wav}", "INFO", self.ssrc)
+        self.wav_path = name_wav
         return wf
 
     def extract_channel_name(self, url):
@@ -136,7 +138,9 @@ class RTP_Client:
                     if now - self.wav_start_time >= WAV_SEGMENT_SECONDS:
                         if self.wavefile:
                             self.wavefile.close()
+                        self.send_to_whisper(self.wav_path)
                         self.wavefile = None
+                        self.wav_path = None
                         gc.collect()
                         self.wav_index += 1
                         self.wavefile = self.create_wav_file(self.ssrc, wav_index=self.wav_index)
@@ -154,6 +158,32 @@ class RTP_Client:
                     break
             time.sleep(0.005)
     
+def send_to_whisper(self, wav_path: str):
+    import requests
+
+    url = "http://172.20.100.32:8007/transcribe"  # ajusta el puerto/path real
+
+    params = {
+        "model_path": "/home/soflex/servicios/t_whisper/whisper-v3-turbo-es-ar/checkpoint-14000",
+        "language": "Spanish"
+    }
+
+    with open(wav_path, "rb") as f:
+        files = {"audio": (wav_path, f, "audio/wav")}
+        response = requests.post(url, params=params, files=files)
+
+    if response.status_code == 200:
+        data = response.json()
+        print(f"\n✅ Transcripción completa de {wav_path}:")
+        print(data.get("transcription", ""))
+
+        if "segments" in data:
+            print("📍 Segmentos:")
+            for i, seg in enumerate(data["segments"], start=1):
+                print(f"   [{i}] {seg}")
+    else:
+        print(f"❌ Error {response.status_code}: {response.text}")
+
     def cleanup(self):
         """Cierra archivos y libera recursos del cliente RTP."""
         with self.lock:
