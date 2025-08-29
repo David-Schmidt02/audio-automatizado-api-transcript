@@ -158,31 +158,31 @@ class RTP_Client:
                     break
             time.sleep(0.005)
     
-def send_to_whisper(self, wav_path: str):
-    import requests
+    def send_to_whisper(self, wav_path: str):
+        import requests
 
-    url = "http://172.20.100.32:8007/transcribe"  # ajusta el puerto/path real
+        url = "http://172.20.100.32:8007/transcribe"  # ajusta el puerto/path real
 
-    params = {
-        "model_path": "/home/soflex/servicios/t_whisper/whisper-v3-turbo-es-ar/checkpoint-14000",
-        "language": "Spanish"
-    }
+        params = {
+            "model_path": "/home/soflex/servicios/t_whisper/whisper-v3-turbo-es-ar/checkpoint-14000",
+            "language": "Spanish"
+        }
 
-    with open(wav_path, "rb") as f:
-        files = {"audio": (wav_path, f, "audio/wav")}
-        response = requests.post(url, params=params, files=files)
+        with open(wav_path, "rb") as f:
+            files = {"audio": (wav_path, f, "audio/wav")}
+            response = requests.post(url, params=params, files=files)
 
-    if response.status_code == 200:
-        data = response.json()
-        print(f"\n✅ Transcripción completa de {wav_path}:")
-        print(data.get("transcription", ""))
+        if response.status_code == 200:
+            data = response.json()
+            print(f"\n✅ Transcripción completa de {wav_path}:")
+            print(data.get("transcription", ""))
 
-        if "segments" in data:
-            print("📍 Segmentos:")
-            for i, seg in enumerate(data["segments"], start=1):
-                print(f"   [{i}] {seg}")
-    else:
-        print(f"❌ Error {response.status_code}: {response.text}")
+            if "segments" in data:
+                print("📍 Segmentos:")
+                for i, seg in enumerate(data["segments"], start=1):
+                    print(f"   [{i}] {seg}")
+        else:
+            print(f"❌ Error {response.status_code}: {response.text}")
 
     def cleanup(self):
         """Cierra archivos y libera recursos del cliente RTP."""
