@@ -103,14 +103,14 @@ class RTP_Client:
         return rtp_packet
 
     def start_worker_client(self, shutdown_event=None):
-        log_and_save(f"[Worker] Iniciado para cliente con SSRC: {self.ssrc}", "INFO")
+        log_and_save(f"[Worker] Iniciado para cliente con SSRC: {self.ssrc}", "INFO", self.ssrc)
         jitter_buffer = self.jitter_buffer
         if shutdown_event is None:
             shutdown_event = getattr(self, 'shutdown_event', None)
 
         while True:
             if shutdown_event and shutdown_event.is_set():
-                log_and_save(f"[Worker] Shutdown event detectado. Cerrando worker SSRC: {self.ssrc}", "INFO")
+                log_and_save(f"[Worker] Shutdown event detectado. Cerrando worker SSRC: {self.ssrc}", "INFO", self.ssrc)
                 break
             with self.lock:
                 # Esperar a que el jitter buffer tenga prefill suficiente
@@ -136,7 +136,7 @@ class RTP_Client:
                         self.wav_index += 1
                         self.wavefile = self.create_wav_file(self.ssrc, wav_index=self.wav_index)
                         self.wav_start_time = time.time()
-                        log_and_save(f"[Segmentación] Nuevo archivo WAV para {self.ssrc}, segmento {self.wav_index}", "INFO")
+                        log_and_save(f"[Segmentación] Nuevo archivo WAV para {self.ssrc}, segmento {self.wav_index}", "INFO", self.ssrc)
 
                     if self.wavefile:
                         self.wavefile.writeframes(packet["payload"])
@@ -159,7 +159,7 @@ class RTP_Client:
                     pass
                 self.wavefile = None
             self.jitter_buffer = None
-        log_and_save(f"[Cleanup] Recursos liberados para cliente SSRC: {self.ssrc}", "INFO")
+        log_and_save(f"[Cleanup] Recursos liberados para cliente SSRC: {self.ssrc}", "INFO", self.ssrc)
 
     def handle_inactivity(self, ssrc):
         """
@@ -168,20 +168,18 @@ class RTP_Client:
         if time.time() - self.last_time > INACTIVITY_TIMEOUT:
             try:
                 self.cleanup()
-                log_and_save(f"[Worker] Cliente {ssrc} inactivo por {INACTIVITY_TIMEOUT}s, recursos liberados.", "INFO")
+                log_and_save(f"[Worker] Cliente {self.ssrc} inactivo por {INACTIVITY_TIMEOUT}s, recursos liberados.", "INFO", self.ssrc)
             except Exception as e:
-                log_and_save(f"[Worker] Error en cleanup de cliente {ssrc}: {e}", "ERROR")
+                log_and_save(f"[Worker] Error en cleanup de cliente {self.ssrc}: {e}", "ERROR", self.ssrc)
             return True
         return False
 
-def parse_rtp_packet(data):
-    """
-    Analiza un paquete RTP y devuelve un objeto RTP.
-    """
+"""def parse_rtp_packet(data):
+#
     try:
         rtp_packet = RTP()
         rtp_packet.fromBytearray(bytearray(data))
         return rtp_packet
     except Exception as e:
-        log_and_save(f"Error parsing RTP packet: {e}", "ERROR")
-        return None
+        log_and_save(f"Error parsing RTP packet: {e}", "ERROR",)
+        return None"""
