@@ -143,6 +143,7 @@ class RTP_Client:
                             self.send_to_whisper(self.wav_path)
                             log_and_save(f"✅ Enviado {self.wav_path} para transcripción.", "INFO", self.ssrc)
                             # Eliminacion del wavefile
+                            # self.eliminar_wavefile(self.wav_path)
                         self.wavefile = None
                         self.wav_path = None
                         gc.collect()
@@ -162,6 +163,9 @@ class RTP_Client:
                     break
             time.sleep(0.005)
     
+    def eliminar_wavefile(self, wav_path):
+        pass
+
     def send_to_whisper(self, wav_path: str):
         import requests
 
@@ -185,8 +189,10 @@ class RTP_Client:
 
         if response.status_code == 200:
             data = response.json()
+            print("---"*20)
             print(f"\n✅ Transcripción completa de {wav_path}:")
             print(data.get("transcription", ""))
+            print("---"*20)
 
         else:
             print(f"❌ Error {response.status_code}: {response.text}")
