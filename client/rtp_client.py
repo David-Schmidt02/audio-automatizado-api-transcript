@@ -116,7 +116,6 @@ class RTP_Client:
             if shutdown_event and shutdown_event.is_set():
                 log_and_save(f"[Worker] Shutdown event detectado. Cerrando worker SSRC: {self.ssrc}", "INFO", self.ssrc)
                 break
-            log_and_save(f"[Worker] Esperando paquetes en el Jitter Buffer para SSRC: {self.ssrc}", "DEBUG", self.ssrc)
             with self.lock:
                 # Esperar a que el jitter buffer tenga prefill suficiente
                 if not jitter_buffer.ready_to_consume():
