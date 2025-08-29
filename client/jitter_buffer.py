@@ -21,6 +21,7 @@ class JitterBuffer:
     def add_packet(self, seq_num, timestamp, payload):
         log_and_save(f"[JitterBuffer] Paquete añadido: {seq_num}", "DEBUG", self.ssrc)
         self.buffer[seq_num] = (timestamp, payload)
+        log_and_save(f"[JitterBuffer] Tamaño del buffer tras añadir: {len(self.buffer)}", "DEBUG", self.ssrc)
         # Opcional: actualizar expected_timestamp si es el primer paquete
         if self.expected_timestamp is None:
             self.expected_timestamp = timestamp

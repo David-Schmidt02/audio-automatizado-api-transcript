@@ -22,7 +22,7 @@ XVFB_SCREEN = "0"
 #XVFB_RESOLUTION = "1920x1080x24"
 XVFB_RESOLUTION = "1024x768x24"
 # Configuracion para el WAV y el JITTER BUFFER
-INACTIVITY_TIMEOUT = 3 # segundos de inactividad para cerrar WAV
+INACTIVITY_TIMEOUT = 15 # segundos de inactividad para cerrar WAV
 
 
 FRAME_DURATION_MS = FRAME_SIZE / 48000 * 1000  # ms por paquete
