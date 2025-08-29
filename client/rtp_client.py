@@ -28,12 +28,10 @@ class RTP_Client:
         self.next_seq = 0
         self.last_time = None
 
-        self.wav_index = 0
-
-        self.wavefile = self.create_wav_file(self.ssrc, self.wav_index)
+        self.wavefile = None
+        self.wav_path = None
         self.wav_start_time = None
-
-        
+        self.wav_index = 0
 
     def rotate_wav_file(self,):
         """Cierra el archivo actual y abre uno nuevo, incrementando el índice."""
@@ -148,7 +146,7 @@ class RTP_Client:
                         self.wav_path = None
                         gc.collect()
                         self.wav_index += 1
-                        self.wavefile = self.create_wav_file(self.ssrc, self.wav_index)
+                        self.wavefile = self.create_wav_file(self.ssrc, wav_index=self.wav_index)
                         self.wav_start_time = time.time()
                         log_and_save(f"[Segmentación] Nuevo archivo WAV para {self.ssrc}, segmento {self.wav_index}", "INFO", self.ssrc)
 
@@ -165,7 +163,6 @@ class RTP_Client:
     
     def send_to_whisper(self, wav_path: str):
         import requests
-        import os
 
         url = "http://172.20.100.32:8001/transcribe"  # ajusta el puerto/path real
 
@@ -187,10 +184,6 @@ class RTP_Client:
                 self.juntar_segmentos_imprimir(data["segments"])
         else:
             print(f"❌ Error {response.status_code}: {response.text}")
-
-        # Eliminar el archivo WAV después de enviarlo a Whisper
-        os.remove(wav_path)
-        log_and_save(f"🗑️ Archivo WAV eliminado: {wav_path}", "INFO", self.ssrc)
 
     def juntar_segmentos_imprimir(self, segmentos):
         """Imprime los segmentos de audio transcritos."""
