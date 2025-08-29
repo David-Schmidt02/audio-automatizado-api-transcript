@@ -116,14 +116,15 @@ class RTP_Client:
             with self.lock:
                 # Esperar a que el jitter buffer tenga prefill suficiente
                 if not jitter_buffer.ready_to_consume():
+                    log_and_save(f"Esperando prefill del Jitter Buffer...", "DEBUG", self.ssrc)
                     if self.handle_inactivity(self.ssrc):
                         break
                     time.sleep(0.005)
                     continue
-
-                # Procesar todos los paquetes listos en orden
-                next_seq = self.next_seq    
-                while True:
+                        
+                next_seq = self.next_seq
+                # Procesar paquetes SOLO mientras el buffer siga listo para consumir
+                while jitter_buffer.ready_to_consume():
                     packet = jitter_buffer.pop_next(next_seq)
                     if packet is None:
                         break
