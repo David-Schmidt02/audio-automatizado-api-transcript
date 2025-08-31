@@ -107,7 +107,7 @@ def main():
 
     # Controlador de rtp del cliente
     log_and_save(f"Iniciando cliente RTP que procesa sus propios wav", "INFO", id_instance)
-    rtp_client = RTP_Client(id_instance, shutdown_event)
+    rtp_client = RTP_Client(id_instance, url, shutdown_event)
 
     # Controlador de sesión de audio
     log_and_save(f"Iniciando sesión de audio para cliente RTP con SSRC: {id_instance}", "INFO", id_instance)

@@ -1,6 +1,8 @@
 import gc
 import os
 import sys
+import json
+from transcription_client import TranscriptionClient
 from rtp import RTP, PayloadType
 import threading
 import time
@@ -15,13 +17,13 @@ from config import FRAME_SIZE, RTP_VERSION, DEST_IP, DEST_PORT, CHANNELS, SAMPLE
 
 
 class RTP_Client:
-    def __init__(self, ssrc, shutdown_event=None):
+    def __init__(self, ssrc, url ,shutdown_event=None):
         self.ssrc = ssrc
         self.jitter_buffer = JitterBuffer(ssrc)
         self.shutdown_event = shutdown_event
         self.thread_worker = threading.Thread(target=self.start_worker_client, args=(shutdown_event,), daemon=True)
 
-        self.channel_name = None
+        self.channel_name = self.extract_channel_name(url)
         self.client_dir = None
 
         self.lock = threading.Lock()
@@ -32,6 +34,13 @@ class RTP_Client:
         self.wav_path = None
         self.wav_start_time = None
         self.wav_index = 0
+
+        # Inicializar después de definir todos los atributos
+        self.transcription_client = None
+        # Crear el primer archivo WAV y el cliente de transcripción 
+        self.transcription_client = TranscriptionClient(self.ssrc, self.channel_name)
+        self.wavefile = self.create_wav_file(self.ssrc, 0)
+        self.wav_start_time = time.time()
 
     def rotate_wav_file(self,):
         """Cierra el archivo actual y abre uno nuevo, incrementando el índice."""
@@ -45,12 +54,11 @@ class RTP_Client:
         import wave
         """Crea un WAV nuevo para el cliente en un directorio propio dentro de 'records'."""
         base_dir = "records"
-        channel_name = self.channel_name
-        self.client_dir = os.path.join(base_dir, channel_name)
+        self.client_dir = os.path.join(base_dir, self.channel_name)
         if not os.path.exists(self.client_dir):
             os.makedirs(self.client_dir)
-            log_and_save(f"📂 Creando directorio para canal: {channel_name}", "ERROR", self.ssrc)
-        name_wav = os.path.join(self.client_dir, f"record-{time.strftime('%Y%m%d-%H%M%S')}-{ssrc}-{channel_name}-{wav_index}.wav")
+            log_and_save(f"📂 Creando directorio para canal: {self.channel_name}", "ERROR", self.ssrc)
+        name_wav = os.path.join(self.client_dir, f"record-{time.strftime('%Y%m%d-%H%M%S')}-{ssrc}-{self.channel_name}-{wav_index}.wav")
         wf = wave.open(name_wav, "wb")
         wf.setnchannels(CHANNELS)
         wf.setsampwidth(2)
@@ -62,10 +70,14 @@ class RTP_Client:
     def extract_channel_name(self, url):
         import re
         match = re.search(r'youtube\.com/@([^/]+)', url)
+        log_and_save(f"🔍 Canal extraído de la URL: {url}", "INFO", self.ssrc)
         if match:
-            self.channel_name = match.group(1)
+            canal = match.group(1)
+            log_and_save(f"🔍 Canal extraído: {canal}", "INFO", self.ssrc)
+            return canal
         else:
-            self.channel_name = "unknown"   
+            log_and_save(f"🔍 Canal extraído: unknown", "INFO", self.ssrc)
+            return "unknown"
 
     def send_rtp_stream_to_jitter(self, data, ssrc, sequence_number):
         total_len = len(data)
@@ -142,8 +154,8 @@ class RTP_Client:
                         if self.wav_path:
                             self.send_to_whisper(self.wav_path)
                             log_and_save(f"✅ Enviado {self.wav_path} para transcripción.", "INFO", self.ssrc)
-                            # Eliminacion del wavefile
-                            # self.eliminar_wavefile(self.wav_path)
+                            # Eliminación del wavefile después de enviar a Whisper
+                            self.eliminar_wavefile(self.wav_path)
                         self.wavefile = None
                         self.wav_path = None
                         gc.collect()
@@ -164,13 +176,20 @@ class RTP_Client:
             time.sleep(0.005)
     
     def eliminar_wavefile(self, wav_path):
-        pass
+        import os
+        try:
+            if wav_path and os.path.exists(wav_path):
+                os.remove(wav_path)
+                log_and_save(f"🗑️ Archivo WAV eliminado: {wav_path}", "INFO", self.ssrc)
+        except Exception as e:
+            log_and_save(f"❌ Error al eliminar WAV {wav_path}: {e}", "ERROR", self.ssrc)
 
     def send_to_whisper(self, wav_path: str):
         import requests
 
-        url = "http://172.20.100.32:8001/transcribe"  # Canary
+        #url = "http://172.20.100.32:8001/transcribe"  # Canary
         # url = "http://172.20.100.32:8001/transcribe" #
+        url = "http://localhost:8001/transcribe"
         """params = {
             "model_path": "/home/soflex/servicios/t_whisper/whisper-v3-turbo-es-ar/checkpoint-14000",
             "language": "Spanish"
@@ -190,13 +209,8 @@ class RTP_Client:
         if response.status_code == 200:
             data = response.json()
             print(f"\n✅ Transcripción completa de {wav_path}:")
-            print("---"*20)
-            print("---"*20)
-            print(data.get("transcription", ""))
-            print("---"*20)
-            print("---"*20)
             # Enviar por WebSocket
-            self.send_transcription_ws(data.get("transcription", ""), str(self.ssrc))
+            self.transcription_client.send_transcription(data.get("transcription", ""))
 
         else:
             print(f"❌ Error {response.status_code}: {response.text}")
@@ -208,10 +222,13 @@ class RTP_Client:
             if self.wavefile:
                 try:
                     self.wavefile.close()
+                    self.eliminar_wavefile(self.wav_path)
                 except Exception:
                     pass
                 self.wavefile = None
             self.jitter_buffer = None
+            self.transcription_client.close()
+            gc.collect()
         log_and_save(f"[Cleanup] Recursos liberados para cliente SSRC: {self.ssrc}", "INFO", self.ssrc)
 
     def handle_inactivity(self, ssrc):
@@ -231,18 +248,4 @@ class RTP_Client:
         return False
 
 
-    def send_transcription_ws(transcription, client_id):
-        import json
-        import websocket  # pip install websocket-client
-        """Envía la transcripción por WebSocket a un servidor central."""
-        try:
-            ws = websocket.create_connection("ws://localhost:8765")  # Cambia la URL/puerto según tu backend
-            payload = {
-                "client_id": client_id,
-                "transcription": transcription
-            }
-            ws.send(json.dumps(payload))
-            ws.close()
-        except Exception as e:
-            print(f"⚠️ Error enviando por WebSocket: {e}")
 

@@ -19,3 +19,4 @@ websocket-client
 # Mock API Whisper
 fastapi
 uvicorn
+python-multipart

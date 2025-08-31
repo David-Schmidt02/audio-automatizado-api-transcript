@@ -20,9 +20,35 @@
             border: 1.5px solid #4a4e57;
             border-radius: 12px;
             padding: 16px;
-            min-width: 300px;
-            max-width: 400px;
+            min-width: 400px;
+            max-width: 600px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+        }
+        .server-status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-size: 1.1em;
+            font-weight: bold;
+            border-radius: 8px;
+            margin: 20px auto 10px auto;
+            padding: 10px 20px;
+            width: fit-content;
+            transition: background 0.3s, color 0.3s;
+        }
+        .server-status-disconnected {
+            background: #4a2323;
+            color: #ffb3b3;
+            border: 1.5px solid #a33;
+        }
+        .server-status-connected {
+            background: #234a2d;
+            color: #b3ffb3;
+            border: 1.5px solid #3a3;
+        }
+        #server-status-icon {
+            font-size: 1.3em;
         }
         .client-title {
             font-weight: bold;
@@ -34,40 +60,145 @@
         .transcription {
             white-space: pre-line;
             color: #e6e6e6;
+            max-height: 200px;
+            overflow-y: auto;
+            min-height: 40px;
+        }
+        .transcription:empty::before {
+            content: "Esperando mensajes...";
+            color: #888;
+            font-style: italic;
         }
     </style>
 </head>
 <body>
     <h2 style="text-align:center;">Transcripciones en Tiempo Real</h2>
+    <div id="server-status" class="server-status server-status-disconnected">
+        <span id="server-status-icon">❌</span>
+        <span id="server-status-text">Sin conexión al servidor</span>
+    </div>
     <div class="container" id="clients"></div>
     <script>
-        const ws = new WebSocket("ws://localhost:8765");
+        let ws = null;
         const clients = {};
         const container = document.getElementById('clients');
 
-        ws.onmessage = (event) => {
+        // Estado de conexión del servidor
+        const serverStatus = document.getElementById('server-status');
+        const serverStatusIcon = document.getElementById('server-status-icon');
+        const serverStatusText = document.getElementById('server-status-text');
+
+        function setServerStatus(connected) {
+            if (connected) {
+                serverStatus.classList.remove('server-status-disconnected');
+                serverStatus.classList.add('server-status-connected');
+                serverStatusIcon.textContent = '✅';
+                serverStatusText.textContent = 'Conectado al servidor';
+            } else {
+                serverStatus.classList.remove('server-status-connected');
+                serverStatus.classList.add('server-status-disconnected');
+                serverStatusIcon.textContent = '❌';
+                serverStatusText.textContent = 'Sin conexión al servidor';
+            }
+        }
+
+        let reconnectInterval = 2000; // ms
+        let reconnectTimeout = null;
+        let wsReady = false;
+
+        function cleanupWS() {
+            if (ws) {
+                ws.onopen = null;
+                ws.onclose = null;
+                ws.onerror = null;
+                ws.onmessage = null;
+                try { ws.close(); } catch (e) {}
+                ws = null;
+            }
+            wsReady = false;
+        }
+
+        function connectWS() {
+            cleanupWS(); // Asegura que no quedan conexiones viejas
+            ws = new WebSocket("ws://localhost:8765");
+
+            ws.onopen = () => {
+                wsReady = true;
+                setServerStatus(true);
+                console.log("Conectado al servidor WebSocket.");
+                if (reconnectTimeout) {
+                    clearTimeout(reconnectTimeout);
+                    reconnectTimeout = null;
+                }
+            };
+
+            ws.onclose = () => {
+                wsReady = false;
+                setServerStatus(false);
+                console.log("Conexión cerrada. Reintentando...");
+                if (reconnectTimeout) {
+                    clearTimeout(reconnectTimeout);
+                    reconnectTimeout = null;
+                }
+                reconnectTimeout = setTimeout(() => {
+                    connectWS();
+                }, reconnectInterval);
+            };
+
+            ws.onerror = (err) => {
+                console.log("Error WebSocket:", err);
+                wsReady = false;
+                setServerStatus(false);
+                // El onclose se disparará y manejará la reconexión
+            };
+
+            ws.onmessage = (event) => {
+                handleMessage(event.data);
+            };
+        }
+
+        function handleMessage(rawData) {
             let data;
             try {
-                data = JSON.parse(event.data);
-            } catch (e) {
-                return;
-            }
-            const clientId = data.client_id || 'Desconocido';
-            const transcription = data.transcription || '';
-            if (!clients[clientId]) {
-                // Crear caja nueva
+                data = JSON.parse(rawData);
+            } catch (e) { return; }
+
+                const clientId = String(data.client_id || 'Desconocido');
+                const channelName = data.channel_name || '';
+                // Usar channel_name como identificador principal del box
+                const boxTitle = channelName ? `${channelName}${clientId ? ' (' + clientId + ')' : ''}` : clientId;
+                // Usar channel_name para el id seguro si existe, si no clientId
+                const safeId = (channelName || clientId).replace(/[^a-zA-Z0-9_-]/g, "_");
+                const transcription = data.transcription || '';
+
+            // No crear box visual para el "servidor"
+            if (safeId === 'servidor') return;
+
+            if (!clients[safeId]) {
                 const box = document.createElement('div');
                 box.className = 'client-box';
-                box.id = 'client-' + clientId;
-                box.innerHTML = `<div class="client-title">${clientId}</div><div class="transcription" id="trans-${clientId}"></div>`;
+                box.id = 'client-' + safeId;
+                    box.innerHTML = `<div class="client-title">${boxTitle}</div><div class="transcription" id="trans-${safeId}"></div>`;
                 container.appendChild(box);
-                clients[clientId] = box;
+                clients[safeId] = box;
             }
-            // Agregar la transcripción (acumular)
-            const transDiv = document.getElementById('trans-' + clientId);
-            transDiv.textContent += transcription + '\n';
-            transDiv.scrollTop = transDiv.scrollHeight;
-        };
+
+            if (transcription.trim() !== '') {
+                const transDiv = document.getElementById('trans-' + safeId);
+                const line = document.createElement('div');
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString();
+                line.textContent = `[${timeStr}] ${transcription}`;
+                transDiv.appendChild(line);
+                transDiv.scrollTop = transDiv.scrollHeight;
+                setTimeout(() => {
+                    line.remove();
+                    if (transDiv.childElementCount === 0) transDiv.innerHTML = '';
+                }, 300000); // 5 minutos
+            }
+        }
+
+        connectWS();
     </script>
 </body>
 </html>
