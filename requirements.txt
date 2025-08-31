@@ -2,10 +2,6 @@ psutil>=7.0.0
 # Audio Automatizado Testing v4 - Dependencias Python
 
 # === CLIENTE ===
-# Automatización web
-selenium>=4.0.0
-webdriver-manager>=3.8.0
-
 # Audio y RTP
 rtp>=0.0.3
 
@@ -16,3 +12,10 @@ rtp>=0.0.3
 # === NOTAS ===
 # wave: Incluido en Python estándar
 # threading, socket, signal, time, struct, collections, os, sys: Librerías estándar
+
+# WebSocket para envío de transcripciones
+websocket-client
+
+# Mock API Whisper
+fastapi
+uvicorn

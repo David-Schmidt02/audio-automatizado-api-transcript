@@ -195,6 +195,8 @@ class RTP_Client:
             print(data.get("transcription", ""))
             print("---"*20)
             print("---"*20)
+            # Enviar por WebSocket
+            self.send_transcription_ws(data.get("transcription", ""), str(self.ssrc))
 
         else:
             print(f"❌ Error {response.status_code}: {response.text}")
@@ -228,12 +230,19 @@ class RTP_Client:
             return True
         return False
 
-"""def parse_rtp_packet(data):
-#
-    try:
-        rtp_packet = RTP()
-        rtp_packet.fromBytearray(bytearray(data))
-        return rtp_packet
-    except Exception as e:
-        log_and_save(f"Error parsing RTP packet: {e}", "ERROR",)
-        return None"""
+
+    def send_transcription_ws(transcription, client_id):
+        import json
+        import websocket  # pip install websocket-client
+        """Envía la transcripción por WebSocket a un servidor central."""
+        try:
+            ws = websocket.create_connection("ws://localhost:8765")  # Cambia la URL/puerto según tu backend
+            payload = {
+                "client_id": client_id,
+                "transcription": transcription
+            }
+            ws.send(json.dumps(payload))
+            ws.close()
+        except Exception as e:
+            print(f"⚠️ Error enviando por WebSocket: {e}")
+
