@@ -11,12 +11,12 @@ from jitter_buffer import JitterBuffer
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, parent_dir)
 from my_logger import log_and_save
-from config import FRAME_SIZE, RTP_VERSION, DEST_IP, DEST_PORT, CHANNELS, SAMPLE_RATE, WAV_SEGMENT_SECONDS, INACTIVITY_TIMEOUT
+from config import FRAME_SIZE, RTP_VERSION, CHANNELS, SAMPLE_RATE, WAV_SEGMENT_SECONDS, INACTIVITY_TIMEOUT, MOCK_API_TRANSCRIBE
 # PAYLOAD_TYPE termina sobreescribiendose con el de la clase de la libreria rtp
 # Configuración RTP
 
 
-class RTP_Client:
+class RTPClient:
     def __init__(self, ssrc, url ,shutdown_event=None):
         self.ssrc = ssrc
         self.jitter_buffer = JitterBuffer(ssrc)
@@ -184,12 +184,10 @@ class RTP_Client:
         except Exception as e:
             log_and_save(f"❌ Error al eliminar WAV {wav_path}: {e}", "ERROR", self.ssrc)
 
+
     def send_to_whisper(self, wav_path: str):
         import requests
-
-        #url = "http://172.20.100.32:8001/transcribe"  # Canary
-        # url = "http://172.20.100.32:8001/transcribe" #
-        url = "http://localhost:8001/transcribe"
+        url = MOCK_API_TRANSCRIBE
         """params = {
             "model_path": "/home/soflex/servicios/t_whisper/whisper-v3-turbo-es-ar/checkpoint-14000",
             "language": "Spanish"
@@ -201,7 +199,6 @@ class RTP_Client:
             "model": "v2",
             # "gpu_id": "0"  # solo si quieres especificar GPU
         }
-
         with open(wav_path, "rb") as f:
             files = {"audio": (wav_path, f, "audio/wav")}
             response = requests.post(url, params=params, files=files)
@@ -211,7 +208,6 @@ class RTP_Client:
             print(f"\n✅ Transcripción completa de {wav_path}:")
             # Enviar por WebSocket
             self.transcription_client.send_transcription(data.get("transcription", ""))
-
         else:
             print(f"❌ Error {response.status_code}: {response.text}")
 

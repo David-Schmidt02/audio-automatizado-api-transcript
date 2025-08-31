@@ -4,7 +4,7 @@ import subprocess
 import sys
 import threading
 
-from rtp_client import RTP_Client
+from rtp_client import RTPClient
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, parent_dir)
 
@@ -13,9 +13,9 @@ from config import BUFFER_SIZE
 FRAME_BYTES = 1920
 
 class RecordClient:
-    def __init__(self, client: RTP_Client, id_instance):
+    def __init__(self, client: RTPClient, id_instance):
 
-        self.client: RTP_Client = client
+        self.client: RTPClient = client
         self.sink_name = None
         self.module_id = None
         self.recording_thread = None
@@ -145,4 +145,51 @@ class RecordClient:
                 log_and_save(f"⚠️ Failed to unload PulseAudio module: {e}", "ERROR", self.id_instance)
 
         log_and_save("✅ Cleanup: Audio Client Session complete.", "SUCCESS", self.id_instance)
+
+# --- WATCHDOG DE AUDIO (EJEMPLO, NO INTEGRADO) ---
+# Este bloque muestra cómo podrías lanzar un hilo watchdog que periódicamente chequea
+# si el archivo de audio grabado contiene audio real (no solo silencio) usando ffmpeg.
+# No está integrado al flujo principal, solo como referencia para futuras mejoras.
+'''
+import threading
+import subprocess
+import time
+
+def watchdog_audio(path_wav, intervalo=30, umbral_db=-50, repeticiones=4):
+    """
+    Chequea cada 'intervalo' segundos si el archivo WAV tiene audio real.
+    Si detecta 'repeticiones' veces seguidas que el nivel RMS está por debajo de 'umbral_db',
+    puede disparar una acción correctiva (reinicio, alerta, etc).
+    """
+    silencios = 0
+    while True:
+        try:
+            # Usar ffmpeg para obtener el nivel RMS del archivo
+            cmd = [
+                'ffmpeg', '-i', path_wav, '-af', 'volumedetect', '-f', 'null', '-'
+            ]
+            result = subprocess.run(cmd, stderr=subprocess.PIPE, stdout=subprocess.PIPE, text=True)
+            salida = result.stderr
+            # Buscar la línea con 'mean_volume:'
+            for linea in salida.split('\n'):
+                if 'mean_volume:' in linea:
+                    db = float(linea.split('mean_volume:')[1].split(' dB')[0].strip())
+                    print(f"[WATCHDOG] mean_volume: {db} dB")
+                    if db < umbral_db:
+                        silencios += 1
+                    else:
+                        silencios = 0
+                    break
+            if silencios >= repeticiones:
+                print(f"[WATCHDOG] ¡Audio inactivo detectado! Se recomienda reiniciar grabación o alertar.")
+                # Aquí podrías reiniciar el proceso, lanzar una alerta, etc.
+                silencios = 0  # O salir del loop si prefieres
+        except Exception as e:
+            print(f"[WATCHDOG] Error al chequear audio: {e}")
+        time.sleep(intervalo)
+
+# Ejemplo de uso (no integrado):
+# threading.Thread(target=watchdog_audio, args=("/ruta/al/archivo.wav",), daemon=True).start()
+'''
+# --- FIN WATCHDOG DE AUDIO ---
 

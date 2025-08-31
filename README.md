@@ -5,25 +5,41 @@ Sistema automatizado para grabar audio desde streams de video, procesar y segmen
 
 ---
 
+
 ## 🏗️ Arquitectura del Sistema
 
-
 ```
-Cliente (Linux)
 ┌──────────────────────────────┐
-│ Chromium/Chrome (Navegador) │
-│ ↓                            │
-│ PulseAudio                   │
-│ ↓                            │
-│ FFmpeg/Parec (grabación)     │
-│ ↓                            │
-│ JitterBuffer (acumulación y reordenamiento) │
-│ ↓                            │
-│ Worker (procesa y segmenta)  │
-│ ↓                            │
-│ Archivos WAV locales         │
-└──────────────────────────────┘
+│         Navegador           │
+│  (Chrome/Chromium)          │
+└─────────────┬────────────────┘
+	      ↓
+	PulseAudio
+	      ↓
+      FFmpeg / Parec
+	      ↓
+      JitterBuffer
+	      ↓
+      Segmentación WAV
+	      ↓
+┌─────────────┴─────────────┐
+│   Cliente RTP (Python)    │
+│  - rtp_client.py          │
+│  - audio_client_session.py│
+└─────────────┬─────────────┘
+	      ↓
+   [POST /transcribe] (mock_whisper_api.py)
+	      ↓
+   [WebSocket] (websocket_server.py)
+	      ↓
+	Frontend/Monitor
 ```
+
+**Componentes principales:**
+- `mock_whisper_api.py`: API mock que simula transcripción y broadcast por WebSocket.
+- `websocket_server.py`: Servidor WebSocket para broadcast y monitoreo en tiempo real.
+- `client/rtp_client.py`, `client/transcription_client.py`: Cliente RTP y cliente WebSocket modularizados.
+- `config.py`: Centraliza todos los endpoints y puertos.
 
 ---
 
@@ -119,43 +135,52 @@ audio-automatizado-api-transcript/
 
 ---
 
+
 ## 🕹️ Uso Básico
 
-### Servidor
+### 1. Levantar el mock de transcripción (API + WebSocket)
 ```bash
-cd server/
-python main.py
-# Salida: 🎧 Listening for RTP audio on <IP>:6001
+python3 mock_whisper_api.py
+# o
+uvicorn mock_whisper_api:app --reload
+# Accede a la doc interactiva en: http://localhost:8000/docs
 ```
 
-### Cliente
+### 2. Levantar el servidor WebSocket
+```bash
+python3 websocket_server.py
+# Escucha en ws://localhost:8765 (o el puerto configurado en config.py)
+```
+
+### 3. Ejecutar el cliente RTP
 ```bash
 cd client/
-python main.py "https://stream-url.com/live" "ffmpeg/parec"
+python3 main.py "https://www.youtube.com/@canal/live" Chromium ffmpeg
 # Para múltiples clientes:
-python levantar_varios_clientes.py "https://stream-url.com/live" "ffmpeg/parec"
+python3 levantar_varios_clientes.py
 ```
+
+### 4. Visualizar transcripciones en tiempo real
+- Conéctate al WebSocket con un frontend o herramienta compatible (por ejemplo, transcripciones.html).
 
 ---
 
-## 🔧 Configuración Rápida
 
-### Cliente (`client/config.py`)
-```python
-DEST_IP = "<IP del servidor>"
-DEST_PORT = 6001
-FRAME_SIZE = 960
-SAMPLE_RATE = 48000
-JITTER_BUFFER_SIZE = 25  # ms de prefill
-WAV_SEGMENT_SECONDS = 5
-INACTIVITY_TIMEOUT = 3
-```
+## 🔧 Configuración Centralizada
 
-### Servidor (`server/main.py`)
+Todos los endpoints, puertos y rutas están en `config.py`:
+
 ```python
-LISTEN_IP = "<IP de escucha>"
-LISTEN_PORT = 6001
-CHANNELS = 1
+# mock_whisper_api
+MOCK_API_HOST = "localhost"
+MOCK_API_PORT = 8000
+MOCK_API_WS = f"ws://{MOCK_API_HOST}:{MOCK_API_PORT}/ws"
+MOCK_API_TRANSCRIBE = f"http://{MOCK_API_HOST}:{MOCK_API_PORT}/transcribe"
+
+# websocket_server
+WS_SERVER_HOST = "localhost"
+WS_SERVER_PORT = 8765
+WS_SERVER_URL = f"ws://{WS_SERVER_HOST}:{WS_SERVER_PORT}"
 ```
 
 ---
@@ -195,9 +220,10 @@ export MOZ_DISABLE_CONTENT_SANDBOX=1
 
 ---
 
+
 ## 🔄 Flujo de Datos
 
-1. **Cliente**: Chromium/Chrome reproduce stream → PulseAudio captura → FFmpeg/Parec graba → JitterBuffer acumula y reordena → Worker procesa y segmenta → Archivos WAV locales
+1. **Cliente**: Navegador → PulseAudio → FFmpeg/Parec → JitterBuffer → Segmentación WAV → POST a mock_whisper_api → Broadcast WebSocket → Frontend/Monitor
 
 ---
 

@@ -1,13 +1,15 @@
+
 import json
 import threading
 import time
 import websocket
+from config import WS_SERVER_URL
 
 class TranscriptionClient:
-    def __init__(self, client_id, channel_name, url="ws://localhost:8765"):
+    def __init__(self, client_id, channel_name, url=None):
         self.client_id = client_id
         self.channel_name = channel_name
-        self.url = url
+        self.url = url or WS_SERVER_URL
 
         self.ws = None
         self._connect()

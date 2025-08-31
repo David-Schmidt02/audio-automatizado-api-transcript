@@ -35,3 +35,10 @@ async def websocket_endpoint(ws: WebSocket):
         pass
     finally:
         connected.discard(ws)
+
+
+# Permite ejecutar el servidor directamente con: python3 mock_whisper_api.py
+if __name__ == "__main__":
+    import uvicorn
+    print("Iniciando mock_whisper_api en http://0.0.0.0:8000 ...")
+    uvicorn.run("mock_whisper_api:app", host="0.0.0.0", port=8000, reload=True)

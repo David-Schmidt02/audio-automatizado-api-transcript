@@ -11,11 +11,10 @@ import random
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, parent_dir)
 from my_logger import log_and_save
-from config import DEST_IP, DEST_PORT, NUM_DISPLAY_PORT
 
 from audio_client_session import RecordClient
 from navigator_manager import Navigator
-from rtp_client import RTP_Client
+from rtp_client import RTPClient
 
 audio_client_session = None
 navigator_manager = None
@@ -90,7 +89,7 @@ def minimizar_ventana_por_id(window_id, delay=5):
 
 def main():
     """Función principal."""
-    global audio_client_session, navigator_manager, xvfb_manager, XVFB_DISPLAY, HEADLESS, ssrc
+    global audio_client_session, navigator_manager, xvfb_manager,  HEADLESS, ssrc
 
     # 1. Validar argumentos de línea de comandos
     if len(sys.argv) != 4:
@@ -107,7 +106,7 @@ def main():
 
     # Controlador de rtp del cliente
     log_and_save(f"Iniciando cliente RTP que procesa sus propios wav", "INFO", id_instance)
-    rtp_client = RTP_Client(id_instance, url, shutdown_event)
+    rtp_client = RTPClient(id_instance, url, shutdown_event)
 
     # Controlador de sesión de audio
     log_and_save(f"Iniciando sesión de audio para cliente RTP con SSRC: {id_instance}", "INFO", id_instance)
@@ -208,6 +207,9 @@ def main():
         log_and_save("Cerrando navigator_manager...", "INFO", id_instance)
         navigator_manager.cleanup()
     log_and_save("✅ Todos los programas cerrados. Saliendo...", "INFO", id_instance)
+    if rtp_client:
+        log_and_save("Cerrando rtp_client...", "INFO", id_instance)
+        rtp_client.cleanup()
     # Si el shutdown fue por RAM/tiempo (no por Ctrl+C), relanzar
 
     if shutdown_reason['auto'] and not shutdown_reason['sigint']:

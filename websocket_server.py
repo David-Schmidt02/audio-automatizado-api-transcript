@@ -1,7 +1,7 @@
+from config import WS_SERVER_HOST, WS_SERVER_PORT
 import asyncio
-import websockets
 import json
-
+import websockets
 
 # ===============================
 # MEJORA: Broadcast concurrente y logs de error para robustez y trazabilidad
@@ -58,9 +58,9 @@ if __name__ == "__main__":
         # Aumentar el timeout de ping y el intervalo para tolerancia
         server = await websockets.serve(
             handler,
-            "0.0.0.0", 8765,
+            WS_SERVER_HOST, WS_SERVER_PORT,
         )
-        print("Servidor WebSocket escuchando en ws://0.0.0.0:8765")
+        print(f"Servidor WebSocket escuchando en ws://{WS_SERVER_HOST}:{WS_SERVER_PORT}")
         await server.wait_closed()
 
     asyncio.run(main())

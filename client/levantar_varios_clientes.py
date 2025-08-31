@@ -4,18 +4,10 @@ import time
 import subprocess
 # ~/Desktop/Soflex/audio-test-env/bin/python 
 # main.py "https://www.youtube.com/@olgaenvivo_/live" Chromium F
-url1 = "https://www.youtube.com/@olgaenvivo_/live"
-url2 = "https://www.youtube.com/@luzutv/live"
-url3 = "https://www.youtube.com/@todonoticias/live"
-url4 = "https://www.youtube.com/@lanacion/live"
-url5 = "https://www.youtube.com/@C5N/live"
-url6 = "https://www.youtube.com/@A24com/live"
-url7 = "https://www.youtube.com/@Telefe/live"
-url8 = "https://www.youtube.com/@UrbanaPlayFM/live"
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, parent_dir)
+from config import urls_canales
 
-
-
-urls = [url1, url2, url3, url4]
 
 def main():
     formato = "ffmpeg" # o parec
@@ -25,7 +17,7 @@ def main():
     script_path = os.path.abspath("main.py")
     #num_cores = 6  # Cambia este valor según los núcleos que quieras usar
 
-    for i, url in enumerate(urls):
+    for i, url in enumerate(urls_canales):
         print(f"Processing {url}")
         #core = i % num_cores  # Asigna núcleo de forma cíclica
         """cmd = f"taskset -c {core} {python_env_interprete} {script_path} '{url}' '{navigator}' '{formato}'; exec bash"

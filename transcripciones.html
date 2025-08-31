@@ -23,6 +23,11 @@
             min-width: 400px;
             max-width: 600px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+            transition: border 0.3s, background 0.3s;
+        }
+        .client-inactive {
+            border: 2px solid #a33;
+            background: #3a2323;
         }
         .server-status {
             display: flex;
@@ -80,7 +85,8 @@
     <div class="container" id="clients"></div>
     <script>
         let ws = null;
-        const clients = {};
+    const clients = {};
+    const lastActivity = {};
         const container = document.getElementById('clients');
 
         // Estado de conexión del servidor
@@ -157,7 +163,7 @@
             };
         }
 
-        function handleMessage(rawData) {
+    function handleMessage(rawData) {
             let data;
             try {
                 data = JSON.parse(rawData);
@@ -170,6 +176,8 @@
                 // Usar channel_name para el id seguro si existe, si no clientId
                 const safeId = (channelName || clientId).replace(/[^a-zA-Z0-9_-]/g, "_");
                 const transcription = data.transcription || '';
+                // Actualizar timestamp de última actividad
+                lastActivity[safeId] = Date.now();
 
             // No crear box visual para el "servidor"
             if (safeId === 'servidor') return;
@@ -178,10 +186,25 @@
                 const box = document.createElement('div');
                 box.className = 'client-box';
                 box.id = 'client-' + safeId;
-                    box.innerHTML = `<div class="client-title">${boxTitle}</div><div class="transcription" id="trans-${safeId}"></div>`;
+                box.innerHTML = `<div class="client-title">${boxTitle}</div><div class="transcription" id="trans-${safeId}"></div>`;
                 container.appendChild(box);
                 clients[safeId] = box;
             }
+            // Al recibir mensaje, quitar estado inactivo si lo tenía
+            clients[safeId].classList.remove('client-inactive');
+        // Chequeo periódico de inactividad
+        setInterval(() => {
+            const now = Date.now();
+            for (const safeId in clients) {
+                if (!lastActivity[safeId]) continue;
+                const elapsed = (now - lastActivity[safeId]) / 1000;
+                if (elapsed > 30) {
+                    clients[safeId].classList.add('client-inactive');
+                } else {
+                    clients[safeId].classList.remove('client-inactive');
+                }
+            }
+        }, 5000);
 
             if (transcription.trim() !== '') {
                 const transDiv = document.getElementById('trans-' + safeId);
