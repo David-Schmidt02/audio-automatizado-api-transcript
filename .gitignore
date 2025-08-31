@@ -1,0 +1,25 @@
+# Logs y carpetas generadas
+client/logs/
+client/records/
+client/__pycache__/
+
+# Audios generados
+*.wav
+
+# Python
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.env
+.env
+
+# Entornos virtuales
+venv/
+env/
+.venv/
+.env/
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
