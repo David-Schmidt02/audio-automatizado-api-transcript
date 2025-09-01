@@ -39,3 +39,7 @@ url7 = "https://www.youtube.com/@Telefe/live"
 url8 = "https://www.youtube.com/@UrbanaPlayFM/live"
 
 urls_canales = [url1]
+
+# Directorio de default_user
+DIR_CHROME_USER = "/home/david/.config/google-chrome/Default"
+DIR_CHROMIUM_USER = "/home/david/.config/chromium/Default"

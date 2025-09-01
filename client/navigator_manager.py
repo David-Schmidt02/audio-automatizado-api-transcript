@@ -49,8 +49,11 @@ class Navigator():
     def use_existing_profile(self, profile_name="Default"):
         """Usa un perfil de Chrome/Chromium ya existente dentro del base_dir correspondiente. Si no encuentra Default, busca Profile 1, Profile 2, ..."""
         if self.navigator_name == "Chrome":
+            from config import DIR_CHROME_USER
+            # base_dir = DIR_CHROME_USER
             base_dir = os.path.expanduser("~/.config/google-chrome/")
         elif self.navigator_name == "Chromium":
+            # base_dir = DIR_CHROMIUM_USER
             base_dir = os.path.expanduser("~/.config/chromium/")
         else:
             log_and_save("❌ Navegador no soportado para perfiles existentes", "ERROR", self.ssrc)
@@ -101,12 +104,13 @@ class Navigator():
         """Lanza Google Chrome o Chromium en modo headless usando el perfil creado y el display indicado, con afinidad/prioridad si es Linux."""
         from flags_nav_ffmpeg.flags_comunes import CHROME_CHROMIUM_COMMON_FLAGS
         import platform
-        profile_args = [f"--user-data-dir={os.path.dirname(self.navigator_profile_dir)}", "--profile-directory=Default"]
         navigator_name = self.navigator_name.lower()
         if navigator_name == "chrome":
             base_cmd = ["google-chrome"]
+            profile_args = [f"--user-data-dir={os.path.dirname(self.navigator_profile_dir)}", "--profile-directory=Default"]
         else:
             base_cmd = ["chromium"]
+            profile_args = [f"--user-data-dir={os.path.dirname(self.navigator_profile_dir)}", "--profile-directory=Default"]
         cmd = (
             base_cmd
             + CHROME_CHROMIUM_COMMON_FLAGS

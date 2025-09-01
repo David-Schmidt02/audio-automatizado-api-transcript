@@ -10,29 +10,46 @@ Sistema automatizado para grabar audio desde streams de video, procesar y segmen
 
 ```
 ┌──────────────────────────────┐
-│         Navegador           │
-│  (Chrome/Chromium)          │
+│      Navegador Web           │
+│ (Chrome/Chromium, sesión     │
+│  iniciada, perfil Default)   │
 └─────────────┬────────────────┘
-	      ↓
-	PulseAudio
-	      ↓
-      FFmpeg / Parec
-	      ↓
-      JitterBuffer
-	      ↓
-      Segmentación WAV
-	      ↓
-┌─────────────┴─────────────┐
-│   Cliente RTP (Python)    │
-│  - rtp_client.py          │
-│  - audio_client_session.py│
-└─────────────┬─────────────┘
-	      ↓
-   [POST /transcribe] (mock_whisper_api.py)
-	      ↓
-   [WebSocket] (websocket_server.py)
-	      ↓
-	Frontend/Monitor
+              │ Audio (PulseAudio)
+              ▼
+        ┌───────────────┐
+        │   FFmpeg /   │
+        │    Parec     │
+        └──────┬────────┘
+               │ PCM
+               ▼
+        ┌───────────────┐
+        │ JitterBuffer  │
+        └──────┬────────┘
+               │
+               ▼
+        ┌───────────────┐
+        │ Segmentación  │
+        │   WAV (5s)    │
+        └──────┬────────┘
+               │
+               ▼
+        ┌───────────────┐
+        │ Cliente RTP   │
+        │ (Python)      │
+        └──────┬────────┘
+               │ POST /transcribe
+               ▼
+   ┌──────────────────────────────┐
+   │   mock_whisper_api.py        │
+   │ (API de transcripción mock)  │
+   └──────┬───────────────┬───────┘
+          │               │
+          │               │ WebSocket
+          ▼               ▼
+   ┌───────────────┐   ┌───────────────┐
+   │ websocket_    │   │ Frontend/     │
+   │ server.py     │   │ Monitor HTML  │
+   └───────────────┘   └───────────────┘
 ```
 
 **Componentes principales:**
@@ -48,7 +65,7 @@ Sistema automatizado para grabar audio desde streams de video, procesar y segmen
 ### Cliente (Linux)
 - **Ubuntu Server 24.04+**
 - **Python 3.12+** y **python3.12-venv**
-- **Chromium** o **Google Chrome**
+- **Chromium** o **Google Chrome** (con cuenta y sesión iniciada)
 - **PulseAudio**
 - **FFmpeg** o **parec**
 - **Git**
@@ -146,10 +163,26 @@ uvicorn mock_whisper_api:app --reload
 # Accede a la doc interactiva en: http://localhost:8000/docs
 ```
 
+**IMPORTANTE:**
+- Debes tener una cuenta de Google y sesión iniciada en el navegador Chrome/Chromium para que la automatización funcione correctamente.
+- El perfil debe ser "Default" o uno donde ya hayas iniciado sesión.
+
 ### 2. Levantar el servidor WebSocket
 ```bash
 python3 websocket_server.py
 # Escucha en ws://localhost:8765 (o el puerto configurado en config.py)
+
+#### Flags de Chrome/Chromium
+El sistema utiliza solo flags mínimas para compatibilidad y autoplay:
+
+```
+--window-size=1920,1080
+--autoplay-policy=no-user-gesture-required
+--mute-audio (opcional, recomendado para autoplay)
+--disable-translate
+--disable-infobars
+```
+No se recomienda usar flags como --incognito, --disable-sync, --disable-notifications, --disable-popup-blocking, --disable-extensions, etc., ya que pueden interferir con el perfil y la sesión.
 ```
 
 ### 3. Ejecutar el cliente RTP
@@ -181,6 +214,9 @@ MOCK_API_TRANSCRIBE = f"http://{MOCK_API_HOST}:{MOCK_API_PORT}/transcribe"
 WS_SERVER_HOST = "localhost"
 WS_SERVER_PORT = 8765
 WS_SERVER_URL = f"ws://{WS_SERVER_HOST}:{WS_SERVER_PORT}"
+
+# Navegador
+# Es necesario tener una cuenta de Google y sesión iniciada en el perfil seleccionado (por defecto: Default).
 ```
 
 ---

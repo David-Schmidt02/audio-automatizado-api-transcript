@@ -1,4 +1,12 @@
-# Flags para afinidad y prioridad de CPU (ejemplo: usar con taskset, chrt, nice)
+
+CHROME_CHROMIUM_COMMON_FLAGS = [
+    "--window-size=1920,1080",
+    "--autoplay-policy=no-user-gesture-required",
+    "--disable-translate",
+    "--disable-infobars",
+]
+
+"""
 CPU_FLAGS = {
     # Afinidad de CPU: lista de núcleos a usar (ejemplo: "0,1" para los dos primeros cores)
     #"taskset": "0",
@@ -8,13 +16,6 @@ CPU_FLAGS = {
 }
 
 CHROME_CHROMIUM_COMMON_FLAGS = [
-    "--window-size=1920,1080",
-    "--autoplay-policy=no-user-gesture-required",
-    "--disable-translate",
-    "--disable-infobars",
-]
-
-"""CHROME_CHROMIUM_COMMON_FLAGS = [
     "--window-size=1920,1080",  # Tamaño de ventana
     #"--incognito",  # Modo incógnito -> Ignora el perfil creado
     "--autoplay-policy=no-user-gesture-required",  # Permitir autoplay sin interacción del usuario
@@ -31,7 +32,7 @@ CHROME_CHROMIUM_COMMON_FLAGS = [
     #"--disable-signin-promo",  # Desactivar promoción de inicio de sesión
     #"--disable-dev-shm-usage",  # Desactivar uso de /dev/shm -> Involucra la memoria compartida, poca seguridad excepto que estés en docker
     #"--start-minimized",
-]"""
+]
 
 GRAPHICS_MIN_FLAGS = [
     #"--disable-gpu", # Desactivar GPU -> Util si no se posee GPU
@@ -55,3 +56,4 @@ PRODUCTION_FLAGS = [
     #"--disable-default-apps",  # Desactivar aplicaciones predeterminadass
     # "--no-sandbox",  # Solo si es seguro en tu entorno
 ]
+"""

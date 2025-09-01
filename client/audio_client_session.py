@@ -50,7 +50,6 @@ class RecordClient:
     def record_audio(self, pulse_device, formato):
         """Graba y envía un stream continuo de audio usando ffmpeg sin segmentación, con afinidad/prioridad si es Linux."""
         log_and_save("🎵 Starting continuous audio streaming (sin segmentación)", "INFO", self.id_instance)
-        from flags_nav_ffmpeg.flags_comunes import CPU_FLAGS
         import platform
         try:
             # Grabacion con ffmpeg
