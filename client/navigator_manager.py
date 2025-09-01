@@ -9,7 +9,6 @@ parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, parent_dir)
 
 from my_logger import log_and_save
-from flags_nav_ffmpeg.flags_comunes import CHROME_CHROMIUM_COMMON_FLAGS, GRAPHICS_MIN_FLAGS, PRODUCTION_FLAGS
 
 class Navigator():
     def __init__(self, name, sink_name, ssrc, headless = None):
@@ -100,9 +99,9 @@ class Navigator():
 
     def launch_chrome_chromium(self, url, env):
         """Lanza Google Chrome o Chromium en modo headless usando el perfil creado y el display indicado, con afinidad/prioridad si es Linux."""
-        from flags_nav_ffmpeg.flags_comunes import CPU_FLAGS
+        from flags_nav_ffmpeg.flags_comunes import CHROME_CHROMIUM_COMMON_FLAGS
         import platform
-        profile_args = [f"--user-data-dir={self.navigator_profile_dir}"]
+        profile_args = [f"--user-data-dir={os.path.dirname(self.navigator_profile_dir)}", "--profile-directory=Default"]
         navigator_name = self.navigator_name.lower()
         if navigator_name == "chrome":
             base_cmd = ["google-chrome"]
@@ -111,15 +110,9 @@ class Navigator():
         cmd = (
             base_cmd
             + CHROME_CHROMIUM_COMMON_FLAGS
-            + GRAPHICS_MIN_FLAGS
-            + PRODUCTION_FLAGS
             + profile_args
             + [url]
-            )
-
-        """if self.headless:
-            cmd.insert(1, "--headless")"""
-        
+        )
         return subprocess.Popen(cmd, env=env)
 
 

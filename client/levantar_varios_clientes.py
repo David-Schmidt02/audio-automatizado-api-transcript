@@ -11,7 +11,7 @@ from config import urls_canales
 
 def main():
     formato = "ffmpeg" # o parec
-    navigator = "Chromium"
+    navigator = "Chrome"
     env_active = os.path.expanduser("~/Escritorio/Soflex/audio-test-env/bin/activate")
     python_env_interprete = os.path.expanduser("~/Escritorio/Soflex/audio-test-env/bin/python")
     script_path = os.path.abspath("main.py")

@@ -38,4 +38,4 @@ url6 = "https://www.youtube.com/@A24com/live"
 url7 = "https://www.youtube.com/@Telefe/live"
 url8 = "https://www.youtube.com/@UrbanaPlayFM/live"
 
-urls_canales = [url1, url2, url3, url4, url5, url6, url7, url8]
+urls_canales = [url1]
