@@ -4,6 +4,8 @@ from fastapi.responses import JSONResponse
 import random
 import asyncio
 
+from config import MOCK_API_HOST, MOCK_API_PORT
+
 app = FastAPI()
 connected = set()
 
@@ -40,5 +42,5 @@ async def websocket_endpoint(ws: WebSocket):
 # Permite ejecutar el servidor directamente con: python3 mock_whisper_api.py
 if __name__ == "__main__":
     import uvicorn
-    print("Iniciando mock_whisper_api en http://0.0.0.0:8000 ...")
-    uvicorn.run("mock_whisper_api:app", host="0.0.0.0", port=8000, reload=True)
+    print(f"Iniciando mock_whisper_api en {MOCK_API_HOST} ...")
+    uvicorn.run("mock_whisper_api:app", host=MOCK_API_HOST, port=MOCK_API_PORT, reload=True)

@@ -8,13 +8,13 @@ SAMPLE_FORMAT = "int16"
 
 # IPs
 # mock_whisper_api
-MOCK_API_HOST = "localhost"
+MOCK_API_HOST = "172.21.100.2"
 MOCK_API_PORT = 8000
 MOCK_API_WS = f"ws://{MOCK_API_HOST}:{MOCK_API_PORT}/ws"
 MOCK_API_TRANSCRIBE = f"http://{MOCK_API_HOST}:{MOCK_API_PORT}/transcribe"
 
 # websocket_server
-WS_SERVER_HOST = "localhost"
+WS_SERVER_HOST = "172.21.100.2"
 WS_SERVER_PORT = 8765
 WS_SERVER_URL = f"ws://{WS_SERVER_HOST}:{WS_SERVER_PORT}"
 
