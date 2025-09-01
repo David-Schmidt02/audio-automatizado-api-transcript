@@ -39,23 +39,12 @@ class TranscriptionClient:
     def on_message(self, ws, message):
         pass  # No necesitas procesar mensajes en este caso
 
-    # --- MODO CONTADOR PARA DEPURACIÓN ---
-    _counter = 0
     def send_transcription(self, transcription):
-        # Para enviar solo un contador incremental, descomenta las siguientes dos líneas
-        TranscriptionClient._counter += 1
         payload = {
             "client_id": self.client_id,
             "channel_name": self.channel_name,
-            "transcription": f"{TranscriptionClient._counter}"
+            "transcription": transcription
         }
-
-        # Para enviar la transcripción real, comenta las 3 líneas anteriores y descomenta esto:
-        # payload = {
-        #     "client_id": self.client_id,
-        #     "channel_name": self.channel_name,
-        #     "transcription": transcription
-        # }
 
         try:
             self.ws.send(json.dumps(payload))

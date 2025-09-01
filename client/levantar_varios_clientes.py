@@ -8,22 +8,28 @@ parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, parent_dir)
 from config import urls_canales
 
-
 def main():
     formato = "ffmpeg" # o parec
-    navigator = "Chromium"  # o Chrome
+    navigator = "Chrome"  # o Chrome
     env_active = os.path.expanduser("~/Escritorio/Soflex/audio-test-env/bin/activate")
     python_env_interprete = os.path.expanduser("~/Escritorio/Soflex/audio-test-env/bin/python")
     script_path = os.path.abspath("main.py")
-    #num_cores = 6  # Cambia este valor según los núcleos que quieras usar
-
+    user1 = "david"
+    user2 = "lucia"
+    contador = 1
     for i, url in enumerate(urls_canales):
         print(f"Processing {url}")
         #core = i % num_cores  # Asigna núcleo de forma cíclica
-        """cmd = f"taskset -c {core} {python_env_interprete} {script_path} '{url}' '{navigator}' '{formato}'; exec bash"
-        """
-        cmd = f"{python_env_interprete} {script_path} '{url}' '{navigator}' '{formato}'; exec bash"
+
+        """if i % 2 == 0:
+            user = user1
+        else:
+            user = user2"""
+
+        cmd = f"{python_env_interprete} {script_path} '{url}' '{navigator}' '{formato}' '{contador}';  exec bash"
+
         subprocess.Popen(["gnome-terminal", "--", "bash", "-c", cmd])
+        contador += 1
         time.sleep(20)
 
 if __name__ == "__main__":

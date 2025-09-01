@@ -4,6 +4,11 @@ CHROME_CHROMIUM_COMMON_FLAGS = [
     "--autoplay-policy=no-user-gesture-required",
     "--disable-translate",
     "--disable-infobars",
+    "--no-default-browser-check",
+    "--no-first-run",
+    "--new-instance",
+    #"--disable-notifications",
+    #"--disable-popup-blocking",
 ]
 
 """

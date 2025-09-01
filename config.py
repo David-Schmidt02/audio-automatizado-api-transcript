@@ -8,8 +8,10 @@ SAMPLE_FORMAT = "int16"
 
 # IPs
 # mock_whisper_api
-MOCK_API_HOST = "172.21.100.2"
-MOCK_API_PORT = 8000
+MOCK_API_HOST = "172.20.100.32"
+MOCK_API_PORT = 8001
+# 
+
 MOCK_API_WS = f"ws://{MOCK_API_HOST}:{MOCK_API_PORT}/ws"
 MOCK_API_TRANSCRIBE = f"http://{MOCK_API_HOST}:{MOCK_API_PORT}/transcribe"
 
@@ -38,8 +40,10 @@ url6 = "https://www.youtube.com/@A24com/live"
 url7 = "https://www.youtube.com/@Telefe/live"
 url8 = "https://www.youtube.com/@UrbanaPlayFM/live"
 
-urls_canales = [url1]
+urls_canales = [url2]
 
 # Directorio de default_user
 DIR_CHROME_USER = "/home/david/.config/google-chrome/Default"
+DIR_CHROME_USER_david = "/home/david/.config/google-chrome/Default"
+DIR_CHROME_USER_lucia = "/home/david/.config/google-chrome/Profile 1"
 DIR_CHROMIUM_USER = "/home/david/.config/chromium/Default"

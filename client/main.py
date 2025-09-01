@@ -18,7 +18,6 @@ from rtp_client import RTPClient
 
 audio_client_session = None
 navigator_manager = None
-HEADLESS = False
 shutdown_event = threading.Event()
 # Variable para distinguir si el shutdown fue por relanzamiento automático o por señal del usuario
 shutdown_reason = {'auto': False, 'sigint': False}
@@ -89,17 +88,18 @@ def minimizar_ventana_por_id(window_id, delay=5):
 
 def main():
     """Función principal."""
-    global audio_client_session, navigator_manager, xvfb_manager,  HEADLESS, ssrc
+    global audio_client_session, navigator_manager, xvfb_manager, ssrc
 
     # 1. Validar argumentos de línea de comandos
-    if len(sys.argv) != 4:
-        print(f"Usage: {sys.argv[0]} <URL> <Navegador> <Formato>")
-        print(f"\nExample: {sys.argv[0]} 'https://www.youtube.com/@todonoticias/live' 'ffmpeg/parec' True")
+    if len(sys.argv) != 5:
+        print(f"Usage: {sys.argv[0]} <URL> <Navegador> <Formato> <Contador>")
+        print(f"\nExample: {sys.argv[0]} 'https://www.youtube.com/@todonoticias/live' 'ffmpeg/parec' 1")
         sys.exit(1)
 
     url = sys.argv[1]
     navigator_name = sys.argv[2]
     formato = sys.argv[3].lower()
+    contador = int(sys.argv[4])
 
     # Variables globales para cleanup
     id_instance = random.randint(10000, 100000)
@@ -125,7 +125,7 @@ def main():
 
     # 3. Crear el manager de browser
     # Manager del navegador
-    navigator_manager = Navigator(navigator_name, sink_name, id_instance)
+    navigator_manager = Navigator(navigator_name, sink_name, id_instance, contador)
     # 3.1 Crear perfil del Navegador (con autoplay)
     navigator_profile_dir = navigator_manager.create_navigator_profile()
     if not navigator_profile_dir:

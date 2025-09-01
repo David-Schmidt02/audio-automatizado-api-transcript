@@ -1,0 +1,7 @@
+{
+    "nombre": "Familia 1",
+    "miembros": [
+        {"username": "david", "usermail": "d18431477@gmail.com", "userpsw" : "davidadrian09", "Principal" : "True"},
+        {"username": "lucia", "usermail": "l99974549@gmail.com", "userpsw" : "davidadrian09", "Principal" : "False"}
+    ]
+}

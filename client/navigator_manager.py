@@ -11,12 +11,12 @@ sys.path.insert(0, parent_dir)
 from my_logger import log_and_save
 
 class Navigator():
-    def __init__(self, name, sink_name, ssrc, headless = None):
+    def __init__(self, name, sink_name, ssrc, user_count):
         self.navigator_name = name
         self.profile_path = None
         self.sink_name = sink_name
-        self.headless = headless
         self.ssrc = ssrc
+        self.user_count = user_count
 
         self.browser_process = None
         self.navigator_profile_dir = None
@@ -26,11 +26,22 @@ class Navigator():
 
     def create_navigator_profile(self):
         """Crea un directorio de perfil para el navegador."""
-        if self.navigator_name == "Chrome" or self.navigator_name == "Chromium":
-            return self.use_existing_profile()
+        from config import DIR_CHROME_USER_david, DIR_CHROME_USER_lucia, DIR_CHROMIUM_USER
+        if self.navigator_name == "Chrome":
+            if self.user_count % 2 == 0:
+                log_and_save(f"🛠️ Usando perfil de David: {DIR_CHROME_USER_david}", "INFO", self.ssrc)
+                self.navigator_profile_dir = DIR_CHROME_USER_david
+                return DIR_CHROME_USER_david
+            else:
+                log_and_save(f"🛠️ Usando perfil de Lucia: {DIR_CHROME_USER_lucia}", "INFO", self.ssrc)
+                self.navigator_profile_dir = DIR_CHROME_USER_lucia
+                return DIR_CHROME_USER_lucia
+        elif self.navigator_name == "Chromium":
+            return DIR_CHROMIUM_USER
+        else:
             #return self.create_chrome_chromium_profile()
-        log_and_save("❌ Navegador no soportado", "ERROR", self.ssrc)
-        return None
+            log_and_save("❌ Navegador no soportado", "ERROR", self.ssrc)
+            return None
 
     def _find_existing_profile(self, base_dir, profile_name="Default", max_profiles=10):
         """Busca el primer perfil existente: Default, Profile 1, Profile 2, ..."""
@@ -101,16 +112,17 @@ class Navigator():
             return None
 
     def launch_chrome_chromium(self, url, env):
-        """Lanza Google Chrome o Chromium en modo headless usando el perfil creado y el display indicado, con afinidad/prioridad si es Linux."""
+        """Lanza Google Chrome o Chromium"""
         from flags_nav_ffmpeg.flags_comunes import CHROME_CHROMIUM_COMMON_FLAGS
         import platform
+
         navigator_name = self.navigator_name.lower()
         if navigator_name == "chrome":
             base_cmd = ["google-chrome"]
-            profile_args = [f"--user-data-dir={os.path.dirname(self.navigator_profile_dir)}", "--profile-directory=Default"]
+            profile_args = [f"--user-data-dir={os.path.dirname(self.navigator_profile_dir)}", f"--profile-directory={os.path.basename(self.navigator_profile_dir)}"]
         else:
             base_cmd = ["chromium"]
-            profile_args = [f"--user-data-dir={os.path.dirname(self.navigator_profile_dir)}", "--profile-directory=Default"]
+            profile_args = [f"--user-data-dir={os.path.dirname(self.navigator_profile_dir)}"]
         cmd = (
             base_cmd
             + CHROME_CHROMIUM_COMMON_FLAGS
@@ -118,7 +130,6 @@ class Navigator():
             + [url]
         )
         return subprocess.Popen(cmd, env=env)
-
 
     def terminate_child_processes(self, browser_process):
         if browser_process.poll() is None:  # el padre sigue vivo
