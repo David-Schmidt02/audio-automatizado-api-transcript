@@ -80,7 +80,6 @@ class Navigator():
         os.makedirs(self.navigator_profile_dir, exist_ok=True)
         return self.navigator_profile_dir
 
-
     def launch_navigator(self, url, display_num = None):
         """Lanza el navegador especificado con el sink preconfigurado y perfil ya creado."""
         log_and_save(f"🚀 Launching {self.navigator_name} with URL: {url}", "INFO", self.ssrc)

@@ -8,14 +8,14 @@ CPU_FLAGS = {
 }
 CHROME_CHROMIUM_COMMON_FLAGS = [
     "--window-size=1920,1080",  # Tamaño de ventana
-    "--incognito",  # Modo incógnito -> Ignora el perfil creado
+    #"--incognito",  # Modo incógnito -> Ignora el perfil creado
     "--autoplay-policy=no-user-gesture-required",  # Permitir autoplay sin interacción del usuario
     "--disable-notifications",  # Desactivar notificaciones
     "--disable-popup-blocking",  # Desactivar bloqueo de ventanas emergentes
-    "--disable-extensions",  # Desactivar extensiones
+    #"--disable-extensions",  # Desactivar extensiones
     "--no-first-run",  # Ignorar la página de primer uso
     "--no-default-browser-check",  # Ignorar verificación de navegador predeterminado
-    "--disable-features=ChromeWhatsNewUI,Translate,BackgroundNetworking,Sync",  # Desactivar características no deseadas
+    #"--disable-features=ChromeWhatsNewUI,Translate,BackgroundNetworking,Sync",  # Desactivar características no deseadas
     "--disable-component-update",  # Desactivar actualizaciones de componentes
     "--disable-default-apps",  # Desactivar aplicaciones predeterminadas
     "--disable-translate",  # Desactivar traducción
@@ -41,9 +41,9 @@ GRAPHICS_MIN_FLAGS = [
 PRODUCTION_FLAGS = [
     "--no-default-browser-check", # Ignorar verificación de navegador predeterminado
     "--no-first-run",  # Ignorar la página de primer uso
-    "--disable-sync",  # Desactivar sincronización
+    #"--disable-sync",  # Desactivar sincronización
     "--disable-component-update",  # Desactivar actualizaciones de componentes
-    "--disable-background-networking",  # Desactivar redes en segundo plano
+    #"--disable-background-networking",  # Desactivar redes en segundo plano
     "--disable-default-apps",  # Desactivar aplicaciones predeterminadas
     # "--no-sandbox",  # Solo si es seguro en tu entorno
 ]
