@@ -33,8 +33,22 @@ class Navigator():
         log_and_save("❌ Navegador no soportado", "ERROR", self.ssrc)
         return None
 
+    def _find_existing_profile(self, base_dir, profile_name="Default", max_profiles=10):
+        """Busca el primer perfil existente: Default, Profile 1, Profile 2, ..."""
+        # Primero intenta con el nombre dado
+        profile_path = os.path.join(base_dir, profile_name)
+        if os.path.exists(profile_path):
+            return profile_path
+        # Si no existe, prueba con Profile 1, Profile 2, ...
+        for i in range(1, max_profiles+1):
+            alt_name = f"Profile {i}"
+            alt_path = os.path.join(base_dir, alt_name)
+            if os.path.exists(alt_path):
+                return alt_path
+        return None
+
     def use_existing_profile(self, profile_name="Default"):
-        """Usa un perfil de Chrome/Chromium ya existente dentro del base_dir correspondiente."""
+        """Usa un perfil de Chrome/Chromium ya existente dentro del base_dir correspondiente. Si no encuentra Default, busca Profile 1, Profile 2, ..."""
         if self.navigator_name == "Chrome":
             base_dir = os.path.expanduser("~/.config/google-chrome/")
         elif self.navigator_name == "Chromium":
@@ -43,13 +57,13 @@ class Navigator():
             log_and_save("❌ Navegador no soportado para perfiles existentes", "ERROR", self.ssrc)
             return None
 
-        profile_path = os.path.join(base_dir, profile_name)
-        if os.path.exists(profile_path):
-            self.navigator_profile_dir = profile_path
-            log_and_save(f"✅ Usando perfil existente: {profile_path}", "INFO", self.ssrc)
+        found_profile = self._find_existing_profile(base_dir, profile_name)
+        if found_profile:
+            self.navigator_profile_dir = found_profile
+            log_and_save(f"✅ Usando perfil existente: {found_profile}", "INFO", self.ssrc)
             return self.navigator_profile_dir
         else:
-            log_and_save(f"❌ El perfil no existe: {profile_path}", "ERROR", self.ssrc)
+            log_and_save(f"❌ No se encontró ningún perfil válido en {base_dir}", "ERROR", self.ssrc)
             return None
 
     def create_chrome_chromium_profile(self):
