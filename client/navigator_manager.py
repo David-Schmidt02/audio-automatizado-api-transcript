@@ -28,9 +28,29 @@ class Navigator():
     def create_navigator_profile(self):
         """Crea un directorio de perfil para el navegador."""
         if self.navigator_name == "Chrome" or self.navigator_name == "Chromium":
-            return self.create_chrome_chromium_profile()
+            return self.use_existing_profile()
+            #return self.create_chrome_chromium_profile()
         log_and_save("❌ Navegador no soportado", "ERROR", self.ssrc)
         return None
+
+    def use_existing_profile(self, profile_name="Default"):
+        """Usa un perfil de Chrome/Chromium ya existente dentro del base_dir correspondiente."""
+        if self.navigator_name == "Chrome":
+            base_dir = os.path.expanduser("~/.config/google-chrome/")
+        elif self.navigator_name == "Chromium":
+            base_dir = os.path.expanduser("~/.config/chromium/")
+        else:
+            log_and_save("❌ Navegador no soportado para perfiles existentes", "ERROR", self.ssrc)
+            return None
+
+        profile_path = os.path.join(base_dir, profile_name)
+        if os.path.exists(profile_path):
+            self.navigator_profile_dir = profile_path
+            log_and_save(f"✅ Usando perfil existente: {profile_path}", "INFO", self.ssrc)
+            return self.navigator_profile_dir
+        else:
+            log_and_save(f"❌ El perfil no existe: {profile_path}", "ERROR", self.ssrc)
+            return None
 
     def create_chrome_chromium_profile(self):
         """Crea un directorio de perfil para Chrome y Chromium."""
@@ -156,4 +176,4 @@ class Navigator():
     def cleanup(self):
         """Limpia los recursos utilizados por el administrador del navegador."""
         self.cerrar_navegador()
-        self.limpiar_perfil_navegador()
+        #self.limpiar_perfil_navegador()
