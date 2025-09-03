@@ -2,11 +2,13 @@ import gc
 import os
 import sys
 import json
-from transcription_client import TranscriptionClient
 from rtp import RTP, PayloadType
 import threading
 import time
+
+from transcription_client import TranscriptionClient
 from jitter_buffer import JitterBuffer
+from energy_watchdog import EnergyWatchdog
 
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, parent_dir)
@@ -41,6 +43,18 @@ class RTPClient:
         self.transcription_client = TranscriptionClient(self.ssrc, self.channel_name)
         self.wavefile = self.create_wav_file(self.ssrc, 0)
         self.wav_start_time = time.time()
+
+        """
+        Inicializa el watchdog de energía. -> Se encarga de revisar el audio de los wav para saber si hay silencios
+        """
+        self.semaphore_watchdog = threading.Semaphore(0)
+        self.energy_watchdog = EnergyWatchdog(
+            ssrc=self.ssrc,
+            semaphore=self.semaphore_watchdog,
+            umbral=500,        # Ajusta el umbral según tu caso
+            timeout=600,       # 10 minutos
+            check_interval=5   # segundos
+        )
 
     def rotate_wav_file(self,):
         """Cierra el archivo actual y abre uno nuevo, incrementando el índice."""
@@ -154,6 +168,8 @@ class RTPClient:
                         if self.wav_path:
                             self.send_to_whisper(self.wav_path)
                             log_and_save(f"✅ Enviado {self.wav_path} para transcripción.", "INFO", self.ssrc)
+                            self.energy_watchdog.notify_wav_ready(self.wav_path)
+                            self.semaphore_watchdog.acquire()  # Notificar al watchdog que hubo actividad
                             # Eliminación del wavefile después de enviar a Whisper
                             self.eliminar_wavefile(self.wav_path)
                         self.wavefile = None
