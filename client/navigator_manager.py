@@ -24,9 +24,9 @@ class Navigator():
         self.random_id = random.randint(10000, 99999)
 
 
-    def create_navigator_profile(self):
+    def use_existing_profile(self):
         """Crea un directorio de perfil para el navegador."""
-        from config import DIR_CHROME_USER_david, DIR_CHROME_USER_lucia, DIR_CHROMIUM_USER
+        from config import DIR_CHROME_USER_david, DIR_CHROME_USER_lucia, DIR_CHROMIUM_USER, DIR_FIREFOX_USER_david
         if self.navigator_name == "Chrome":
             if self.user_count % 2 == 0:
                 log_and_save(f"🛠️ Usando perfil de David: {DIR_CHROME_USER_david}", "INFO", self.ssrc)
@@ -38,60 +38,13 @@ class Navigator():
                 return DIR_CHROME_USER_lucia
         elif self.navigator_name == "Chromium":
             return DIR_CHROMIUM_USER
+        elif self.navigator_name == "Firefox":
+            return DIR_FIREFOX_USER_david 
         else:
             #return self.create_chrome_chromium_profile()
             log_and_save("❌ Navegador no soportado", "ERROR", self.ssrc)
             return None
 
-    def _find_existing_profile(self, base_dir, profile_name="Default", max_profiles=10):
-        """Busca el primer perfil existente: Default, Profile 1, Profile 2, ..."""
-        # Primero intenta con el nombre dado
-        profile_path = os.path.join(base_dir, profile_name)
-        if os.path.exists(profile_path):
-            return profile_path
-        # Si no existe, prueba con Profile 1, Profile 2, ...
-        for i in range(1, max_profiles+1):
-            alt_name = f"Profile {i}"
-            alt_path = os.path.join(base_dir, alt_name)
-            if os.path.exists(alt_path):
-                return alt_path
-        return None
-
-    def use_existing_profile(self, profile_name="Default"):
-        """Usa un perfil de Chrome/Chromium ya existente dentro del base_dir correspondiente. Si no encuentra Default, busca Profile 1, Profile 2, ..."""
-        if self.navigator_name == "Chrome":
-            from config import DIR_CHROME_USER
-            # base_dir = DIR_CHROME_USER
-            base_dir = os.path.expanduser("~/.config/google-chrome/")
-        elif self.navigator_name == "Chromium":
-            # base_dir = DIR_CHROMIUM_USER
-            base_dir = os.path.expanduser("~/.config/chromium/")
-        else:
-            log_and_save("❌ Navegador no soportado para perfiles existentes", "ERROR", self.ssrc)
-            return None
-
-        found_profile = self._find_existing_profile(base_dir, profile_name)
-        if found_profile:
-            self.navigator_profile_dir = found_profile
-            log_and_save(f"✅ Usando perfil existente: {found_profile}", "INFO", self.ssrc)
-            return self.navigator_profile_dir
-        else:
-            log_and_save(f"❌ No se encontró ningún perfil válido en {base_dir}", "ERROR", self.ssrc)
-            return None
-
-    def create_chrome_chromium_profile(self):
-        """Crea un directorio de perfil para Chrome y Chromium."""
-        log_and_save(f"🛠️ Creating profile for {self.navigator_name}", "INFO", self.ssrc)
-        base_dir = os.path.expanduser("~/.config/")
-        os.makedirs(base_dir, exist_ok=True)
-        # Nombre único para el perfil
-        if self.navigator_name == "Chrome":
-            profile_name = f"chrome-autoplay-{self.random_id}"
-        else:
-            profile_name = f"chrome-chromium-autoplay-{self.random_id}"
-        self.navigator_profile_dir = os.path.join(base_dir, profile_name)
-        os.makedirs(self.navigator_profile_dir, exist_ok=True)
-        return self.navigator_profile_dir
 
     def launch_navigator(self, url, display_num = None):
         """Lanza el navegador especificado con el sink preconfigurado y perfil ya creado."""
@@ -105,10 +58,34 @@ class Navigator():
         try:
             if self.navigator_name == "Chrome" or self.navigator_name == "Chromium":
                 self.browser_process = self.launch_chrome_chromium(url, env)
+            elif self.navigator_name == "Firefox":
+                self.browser_process = self.launch_firefox(url, env)
             log_and_save(f"✅ {self.navigator_name} launched with preconfigured audio sink and autoplay", "INFO", self.ssrc)
             return self.browser_process
         except Exception as e:
             log_and_save(f"❌ Error lanzando {self.navigator_name}: {e}", "ERROR", self.ssrc)
+            return None
+
+    def launch_firefox(self, url, env):
+        """Lanza Firefox"""
+        from flags_nav_ffmpeg.flags_comunes import FIREFOX_COMMON_FLAGS
+        from config import DIR_FIREFOX_USER_david
+        log_and_save(f"🚀 Launching Firefox with URL: {url}", "INFO", self.ssrc)
+        base_cmd = ["firefox"]
+        profile_args = ["--profile", DIR_FIREFOX_USER_david]
+        log_and_save(f"Using Firefox for url: {url}", "INFO", self.ssrc)
+        cmd = (
+            base_cmd
+            + FIREFOX_COMMON_FLAGS
+            + profile_args
+            + [url]
+        )
+        try:
+            self.browser_process = subprocess.Popen(cmd, env=env)
+            log_and_save(f"✅ Firefox launched successfully", "INFO", self.ssrc)
+            return self.browser_process
+        except Exception as e:
+            log_and_save(f"❌ Error lanzando Firefox: {e}", "ERROR", self.ssrc)
             return None
 
     def launch_chrome_chromium(self, url, env):

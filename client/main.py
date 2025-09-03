@@ -127,7 +127,7 @@ def main():
     # Manager del navegador
     navigator_manager = Navigator(navigator_name, sink_name, id_instance, contador)
     # 3.1 Crear perfil del Navegador (con autoplay)
-    navigator_profile_dir = navigator_manager.create_navigator_profile()
+    navigator_profile_dir = navigator_manager.use_existing_profile()
     if not navigator_profile_dir:
         audio_client_session.cleanup()
         navigator_manager.cleanup()

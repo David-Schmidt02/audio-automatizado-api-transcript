@@ -40,10 +40,14 @@ url6 = "https://www.youtube.com/@A24com/live"
 url7 = "https://www.youtube.com/@Telefe/live"
 url8 = "https://www.youtube.com/@UrbanaPlayFM/live"
 
-urls_canales = [url2]
+urls_canales = [url1]
 
 # Directorio de default_user
 DIR_CHROME_USER = "/home/david/.config/google-chrome/Default"
 DIR_CHROME_USER_david = "/home/david/.config/google-chrome/Default"
 DIR_CHROME_USER_lucia = "/home/david/.config/google-chrome/Profile 1"
 DIR_CHROMIUM_USER = "/home/david/.config/chromium/Default"
+
+DIR_FIREFOX_USER = "/home/david/.mozilla/firefox/ibqdhrgq.default"
+DIR_FIREFOX_USER_david = "/home/david/.mozilla/firefox/9guk2cre.david"
+DIR_FIREFOX_USER_lucia = "/home/david/.mozilla/firefox/w206adaz.lucia"

@@ -10,21 +10,13 @@ from config import urls_canales
 
 def main():
     formato = "ffmpeg" # o parec
-    navigator = "Chrome"  # o Chrome
+    navigator = "Firefox"  # o Chrome
     env_active = os.path.expanduser("~/Escritorio/Soflex/audio-test-env/bin/activate")
     python_env_interprete = os.path.expanduser("~/Escritorio/Soflex/audio-test-env/bin/python")
     script_path = os.path.abspath("main.py")
-    user1 = "david"
-    user2 = "lucia"
     contador = 1
     for i, url in enumerate(urls_canales):
         print(f"Processing {url}")
-        #core = i % num_cores  # Asigna núcleo de forma cíclica
-
-        """if i % 2 == 0:
-            user = user1
-        else:
-            user = user2"""
 
         cmd = f"{python_env_interprete} {script_path} '{url}' '{navigator}' '{formato}' '{contador}';  exec bash"
 
