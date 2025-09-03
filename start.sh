@@ -1,30 +1,34 @@
 #!/bin/bash
+set -e
 
-# Iniciar PulseAudio
-echo "Iniciando PulseAudio..."
-pulseaudio --start --system=false --disallow-exit --exit-idle-time=-1
+# Variables
+DISPLAY=${DISPLAY_NUM:-:0}
+VNC_PORT=${VNC_PORT:-5900}
+USER=${USER:-user}
+PROJECT_DIR=${PROJECT_DIR:-/home/$USER/audio-automatizado-api-transcript}
 
-# Iniciar Xvfb y entorno gráfico
-echo "Iniciando Xvfb y XFCE..."
-Xvfb :0 -screen 0 1280x720x16 &
-export DISPLAY=:0
+echo "Iniciando contenedor para $USER con DISPLAY=$DISPLAY y VNC=$VNC_PORT"
+
+# Iniciar PulseAudio como usuario
+sudo -u $USER pulseaudio --start --system=false --disallow-exit --exit-idle-time=-1
+
+# Iniciar Xvfb
+Xvfb $DISPLAY -screen 0 1280x720x16 &
+export DISPLAY=$DISPLAY
 sleep 2
-startxfce4 &
+
+# Iniciar XFCE
+sudo -u $USER startxfce4 &
 
 # Iniciar VNC
-echo "Iniciando x11vnc..."
-x11vnc -display :0 -forever -nopw -listen 0.0.0.0 -rfbport 5900 &
+x11vnc -display $DISPLAY -forever -nopw -listen 0.0.0.0 -rfbport $VNC_PORT &
 
-# Esperar unos segundos para asegurar que todo esté listo
 sleep 5
 
+# Ejecutar cliente main.py como usuario
+sudo -u $USER bash -c "cd $PROJECT_DIR/client && python3 main.py" > $PROJECT_DIR/mainpy.log 2>&1 &
 
-# Ejecutar el cliente main.py como usuario normal y mostrar salida/errores
-echo "Ejecutando main.py como $USER..."
-sudo -u $USER -H bash -c 'cd /home/$USER/audio-automatizado-api-transcript/client && python3 main.py' > /home/$USER/mainpy.log 2>&1 &
-sleep 1
-echo "Salida de main.py (primeras 20 líneas):"
-sudo -u $USER head -20 /home/$USER/mainpy.log || echo "No se pudo leer el log."
+echo "Contenedor listo. Logs en $PROJECT_DIR/mainpy.log"
 
-# Mantener el contenedor vivo
+# Mantener contenedor vivo
 tail -f /dev/null

@@ -3,8 +3,11 @@ FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 ENV USER=user
 ENV PASSWORD=1234
+ENV DISPLAY_NUM=:0
+ENV VNC_PORT=5900
+ENV PROJECT_DIR=/home/$USER/audio-automatizado-api-transcript
 
-# Instalar utilidades básicas, entorno XFCE y VNC
+# Instalar dependencias
 RUN apt-get update && apt-get install -y \
     xfce4 xfce4-goodies \
     x11vnc xvfb \
@@ -12,25 +15,25 @@ RUN apt-get update && apt-get install -y \
     firefox \
     dbus-x11 \
     sudo \
+    python3 python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
 # Crear usuario normal
 RUN useradd -m -s /bin/bash $USER && echo "$USER:$PASSWORD" | chpasswd && adduser $USER sudo
 
-# Configuración de PulseAudio en modo "system-wide"
-RUN mkdir -p /home/$USER/.config/pulse && chown -R $USER:$USER /home/$USER
+# Crear carpetas necesarias
+RUN mkdir -p $PROJECT_DIR && chown -R $USER:$USER $PROJECT_DIR
 
-# Puerto VNC
-EXPOSE 5900
+# Copiar proyecto
+COPY . $PROJECT_DIR
+RUN chown -R $USER:$USER $PROJECT_DIR
 
-
-# Copiar todo el proyecto al home del usuario y dar permisos
-COPY . /home/$USER/audio-automatizado-api-transcript
-RUN chown -R $USER:$USER /home/$USER/audio-automatizado-api-transcript
-
-# Copiar el script de inicio y dar permisos
+# Copiar script de inicio
 COPY start.sh /start.sh
 RUN chmod +x /start.sh
 
-# Script de inicio (Xvfb + XFCE + VNC + PulseAudio + main.py)
+# Exponer puerto VNC
+EXPOSE $VNC_PORT
+
+# Ejecutar el script de inicio
 CMD ["/bin/bash", "/start.sh"]
