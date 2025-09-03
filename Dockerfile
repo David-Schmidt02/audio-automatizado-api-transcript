@@ -23,11 +23,14 @@ RUN mkdir -p /home/$USER/.config/pulse && chown -R $USER:$USER /home/$USER
 # Puerto VNC
 EXPOSE 5900
 
-# Script de inicio (Xvfb + XFCE + VNC + PulseAudio)
-CMD ["/bin/bash", "-c", "\
-    pulseaudio --start --system=false --disallow-exit --exit-idle-time=-1 && \
-    Xvfb :0 -screen 0 1280x720x16 & \
-    export DISPLAY=:0 && \
-    startxfce4 & \
-    x11vnc -display :0 -forever -nopw -listen 0.0.0.0 -rfbport 5900 \
-"]
+
+# Copiar todo el proyecto al home del usuario y dar permisos
+COPY . /home/$USER/audio-automatizado-api-transcript
+RUN chown -R $USER:$USER /home/$USER/audio-automatizado-api-transcript
+
+# Copiar el script de inicio y dar permisos
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
+
+# Script de inicio (Xvfb + XFCE + VNC + PulseAudio + main.py)
+CMD ["/bin/bash", "/start.sh"]
