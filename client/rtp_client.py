@@ -64,10 +64,10 @@ class RTPClient:
         self.wavefile = self.create_wav_file(self.ssrc, wav_index=self.wav_index)
         self.wav_start_time = time.time()
 
+    """    
     def create_wav_file(self, ssrc, wav_index=0):
         import wave
-        """Crea un WAV nuevo para el cliente en un directorio propio dentro de 'records'."""
-        base_dir = "records"
+        '''Crea un WAV nuevo para el cliente en un directorio propio dentro de 'records'.'''
         self.client_dir = os.path.join(base_dir, self.channel_name)
         if not os.path.exists(self.client_dir):
             os.makedirs(self.client_dir)
@@ -79,7 +79,45 @@ class RTPClient:
         wf.setframerate(SAMPLE_RATE)
         log_and_save(f"💾 [Cliente {ssrc}] WAV abierto: {name_wav}", "INFO", self.ssrc)
         self.wav_path = name_wav
+        return wf"""
+
+    def create_wav_file(self, ssrc, wav_index=0):
+        import wave, time, re, os
+        from path_utils import resolve_writable_dir, DATA_BASE
+
+        # Sanear nombre de canal para usar en FS
+        safe_channel = re.sub(r'[^A-Za-z0-9._-]+', '_', self.channel_name or "unknown")
+
+        # Preferido: records/<canal> (dentro del repo); Fallback: /home/soflex/data/records/<canal>
+        base_dir_repo = os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "records")
+        base_dir_repo = os.path.abspath(base_dir_repo)
+        preferred_dir = os.path.join(base_dir_repo, safe_channel)
+
+        records_base  = os.path.join(DATA_BASE, "records")
+        client_dir    = resolve_writable_dir(preferred_dir, records_base)
+
+        if client_dir != preferred_dir:
+            # opcional: loguear que se usó fallback
+            from my_logger import log_and_save
+            log_and_save(f"[records] Sin permisos en {preferred_dir}, usando {client_dir}", "WARN", ssrc)
+
+        name_wav = os.path.join(
+            client_dir,
+            f"record-{time.strftime('%Y%m%d-%H%M%S')}-{ssrc}-{safe_channel}-{wav_index}.wav"
+        )
+
+        wf = wave.open(name_wav, "wb")
+        wf.setnchannels(CHANNELS)
+        wf.setsampwidth(2)
+        wf.setframerate(SAMPLE_RATE)
+
+        from my_logger import log_and_save
+        log_and_save(f"💾 [Cliente {ssrc}] WAV abierto: {name_wav}", "INFO", ssrc)
+
+        self.client_dir = client_dir
+        self.wav_path = name_wav
         return wf
+
 
     def extract_channel_name(self, url):
         import re
@@ -166,12 +204,12 @@ class RTPClient:
                         if self.wavefile:
                             self.wavefile.close()
                         if self.wav_path:
-                            self.send_to_whisper(self.wav_path)
+                            #self.send_to_whisper(self.wav_path)
                             log_and_save(f"✅ Enviado {self.wav_path} para transcripción.", "INFO", self.ssrc)
-                            self.energy_watchdog.notify_wav_ready(self.wav_path)
-                            self.semaphore_watchdog.acquire()  # Notificar al watchdog que hubo actividad
+                            #self.energy_watchdog.notify_wav_ready(self.wav_path)
+                            #self.semaphore_watchdog.acquire()  # Notificar al watchdog que hubo actividad
                             # Eliminación del wavefile después de enviar a Whisper
-                            self.eliminar_wavefile(self.wav_path)
+                            #self.eliminar_wavefile(self.wav_path)
                         self.wavefile = None
                         self.wav_path = None
                         gc.collect()
@@ -204,10 +242,6 @@ class RTPClient:
     def send_to_whisper(self, wav_path: str):
         import requests
         url = MOCK_API_TRANSCRIBE
-        """params = {
-            "model_path": "/home/soflex/servicios/t_whisper/whisper-v3-turbo-es-ar/checkpoint-14000",
-            "language": "Spanish"
-        }"""
         params = {
             "source_language": "es",
             "target_language": "es",
@@ -230,17 +264,17 @@ class RTPClient:
 
     def cleanup(self):
         """Cierra archivos y libera recursos del cliente RTP."""
-        with self.lock:
-            if self.wavefile:
-                try:
-                    self.wavefile.close()
-                    self.eliminar_wavefile(self.wav_path)
-                except Exception:
-                    pass
-                self.wavefile = None
-            self.jitter_buffer = None
-            self.transcription_client.close()
-            gc.collect()
+        # with self.lock:
+        if self.wavefile:
+            try:
+                self.wavefile.close()
+                self.eliminar_wavefile(self.wav_path)
+            except Exception:
+                pass
+            self.wavefile = None
+        self.jitter_buffer = None
+        self.transcription_client.close()
+        gc.collect()
         log_and_save(f"[Cleanup] Recursos liberados para cliente SSRC: {self.ssrc}", "INFO", self.ssrc)
 
     def handle_inactivity(self, ssrc):

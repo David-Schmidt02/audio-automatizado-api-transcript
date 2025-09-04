@@ -5,9 +5,11 @@ psutil>=7.0.0
 # Audio y RTP
 rtp>=0.0.3
 numpy
+requests
 
 # WebSocket para envío de transcripciones
 websocket-client
+websockets
 
 # Mock API Whisper
 fastapi

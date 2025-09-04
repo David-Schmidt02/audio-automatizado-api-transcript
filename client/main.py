@@ -91,15 +91,17 @@ def main():
     global audio_client_session, navigator_manager, xvfb_manager, ssrc
 
     # 1. Validar argumentos de línea de comandos
-    if len(sys.argv) != 5:
+    """    
+        if len(sys.argv) != 5:
         print(f"Usage: {sys.argv[0]} <URL> <Navegador> <Formato> <Contador>")
         print(f"\nExample: {sys.argv[0]} 'https://www.youtube.com/@todonoticias/live' 'ffmpeg/parec' 1")
         sys.exit(1)
+    """
 
-    url = sys.argv[1]
-    navigator_name = sys.argv[2]
-    formato = sys.argv[3].lower()
-    contador = int(sys.argv[4])
+    url = 'https://www.youtube.com/@todonoticias/live'
+    navigator_name = 'Firefox'
+    formato = 'ffmpeg'
+    contador = 0
 
     # Variables globales para cleanup
     id_instance = random.randint(10000, 100000)

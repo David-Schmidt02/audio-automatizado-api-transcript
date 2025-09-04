@@ -32,6 +32,9 @@ docker rm soflex1
 # Eliminar la imagen
 docker rmi soflex-desktop
 
+# Eliminar todas las imagenes con <none>
+docker image prune -f
+
 # Listar contenedores activos
 docker ps
 

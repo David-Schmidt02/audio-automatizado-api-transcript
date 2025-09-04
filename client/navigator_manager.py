@@ -72,12 +72,12 @@ class Navigator():
         from config import DIR_FIREFOX_USER_david
         log_and_save(f"🚀 Launching Firefox with URL: {url}", "INFO", self.ssrc)
         base_cmd = ["firefox"]
-        profile_args = ["--profile", DIR_FIREFOX_USER_david]
+        #profile_args = ["--profile", DIR_FIREFOX_USER_david]
         log_and_save(f"Using Firefox for url: {url}", "INFO", self.ssrc)
         cmd = (
             base_cmd
             + FIREFOX_COMMON_FLAGS
-            + profile_args
+            #+ profile_args
             + [url]
         )
         try:

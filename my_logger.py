@@ -35,12 +35,19 @@ def log(message, level="INFO"):
     color = color_map.get(level, Colors.WHITE)
     print(f"{color}[{timestamp}] [{level}] {message}{Colors.END}")
 
+
+
+from path_utils import resolve_writable_dir, LOG_BASE
+
 def log_and_save(message, level, ssrc):
-    log(message, level)
-    base_dir = os.path.abspath(os.path.dirname(__file__))
-    log_dir = os.path.join(base_dir, "client/logs")
-    if not os.path.exists(log_dir):
-        os.makedirs(log_dir)
-    log_file = f"{log_dir}/{ssrc}-client.log"
+    # consola con color, igual que tenías
+    now = datetime.datetime.now().strftime("%H:%M:%S")
+    print(f"[{now}] [{level}] {message}")
+
+    base_dir = os.path.abspath(os.path.dirname(__file__))  # carpeta del repo
+    preferred = os.path.join(base_dir, "client", "logs")
+    log_dir   = resolve_writable_dir(preferred, LOG_BASE)
+
+    log_file = os.path.join(log_dir, f"{ssrc}-client.log")
     with open(log_file, "a", encoding="utf-8") as f:
         f.write(f"[{level}] {message}\n")
