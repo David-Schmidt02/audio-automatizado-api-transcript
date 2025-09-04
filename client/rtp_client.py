@@ -2,28 +2,39 @@ import gc
 import os
 import sys
 import json
-from rtp import RTP, PayloadType
 import threading
 import time
 
-from transcription_client import TranscriptionClient
+from rtp import RTP, PayloadType
 from jitter_buffer import JitterBuffer
 from energy_watchdog import EnergyWatchdog
 
+# Rutas / imports locales
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, parent_dir)
-from my_logger import log_and_save
-from config import FRAME_SIZE, RTP_VERSION, CHANNELS, SAMPLE_RATE, WAV_SEGMENT_SECONDS, INACTIVITY_TIMEOUT, MOCK_API_TRANSCRIBE
-# PAYLOAD_TYPE termina sobreescribiendose con el de la clase de la libreria rtp
-# Configuración RTP
-
+from my_logger import log_and_save  # noqa: E402
+from config import (                # noqa: E402
+    FRAME_SIZE, RTP_VERSION, CHANNELS, SAMPLE_RATE,
+    WAV_SEGMENT_SECONDS, INACTIVITY_TIMEOUT, MOCK_API_TRANSCRIBE
+)
 
 class RTPClient:
-    def __init__(self, ssrc, url ,shutdown_event=None):
+    """
+    Cliente RTP que:
+      - recorta el stream en segmentos WAV de tamaño fijo,
+      - alimenta un JitterBuffer,
+      - notifica WAVs terminados al EnergyWatchdog,
+      - y (opcionalmente) los envía a un backend (Whisper mock).
+    """
+    def __init__(self, ssrc, url, shutdown_event=None):
         self.ssrc = ssrc
         self.jitter_buffer = JitterBuffer(ssrc)
         self.shutdown_event = shutdown_event
-        self.thread_worker = threading.Thread(target=self.start_worker_client, args=(shutdown_event,), daemon=True)
+        self.thread_worker = threading.Thread(
+            target=self.start_worker_client,
+            args=(shutdown_event,),
+            daemon=True
+        )
 
         self.channel_name = self.extract_channel_name(url)
         self.client_dir = None
@@ -38,103 +49,87 @@ class RTPClient:
         self.wav_index = 0
 
         # Inicializar después de definir todos los atributos
-        self.transcription_client = None
-        # Crear el primer archivo WAV y el cliente de transcripción 
-        self.transcription_client = TranscriptionClient(self.ssrc, self.channel_name)
+        self.transcription_client = None  # se crea sólo cuando lo uses
+        self.semaphore_watchdog = threading.Semaphore(0)
+        self.energy_watchdog = EnergyWatchdog(
+            semaphore=self.semaphore_watchdog,
+            ssrc=self.ssrc,
+            umbral=500,         # ajustá a gusto
+            timeout=600,        # 10 min
+            check_interval=5,   # s
+            frame_ms=30
+        )
+
+        # Abrir primer WAV
         self.wavefile = self.create_wav_file(self.ssrc, 0)
         self.wav_start_time = time.time()
 
-        """
-        Inicializa el watchdog de energía. -> Se encarga de revisar el audio de los wav para saber si hay silencios
-        """
-        self.semaphore_watchdog = threading.Semaphore(0)
-        self.energy_watchdog = EnergyWatchdog(
-            ssrc=self.ssrc,
-            semaphore=self.semaphore_watchdog,
-            umbral=500,        # Ajusta el umbral según tu caso
-            timeout=600,       # 10 minutos
-            check_interval=5   # segundos
-        )
-
-    def rotate_wav_file(self,):
+    # ------------------------------
+    # Archivos WAV
+    # ------------------------------
+    def rotate_wav_file(self):
         """Cierra el archivo actual y abre uno nuevo, incrementando el índice."""
         if self.wavefile:
-            self.wavefile.close()
+            try:
+                self.wavefile.close()
+            except Exception:
+                pass
         self.wav_index += 1
         self.wavefile = self.create_wav_file(self.ssrc, wav_index=self.wav_index)
         self.wav_start_time = time.time()
 
-    """    
     def create_wav_file(self, ssrc, wav_index=0):
         import wave
-        '''Crea un WAV nuevo para el cliente en un directorio propio dentro de 'records'.'''
+        """Crea un WAV nuevo para el cliente en records/<canal>/."""
+        base_dir = os.path.abspath("records")
         self.client_dir = os.path.join(base_dir, self.channel_name)
         if not os.path.exists(self.client_dir):
-            os.makedirs(self.client_dir)
-            log_and_save(f"📂 Creando directorio para canal: {self.channel_name}", "ERROR", self.ssrc)
-        name_wav = os.path.join(self.client_dir, f"record-{time.strftime('%Y%m%d-%H%M%S')}-{ssrc}-{self.channel_name}-{wav_index}.wav")
+            os.makedirs(self.client_dir, exist_ok=True)
+            log_and_save(f"📂 Creando directorio para canal: {self.channel_name}", "INFO", self.ssrc)
+
+        name_wav = os.path.join(
+            self.client_dir,
+            f"record-{time.strftime('%Y%m%d-%H%M%S')}-{ssrc}-{self.channel_name}-{wav_index}.wav"
+        )
+
         wf = wave.open(name_wav, "wb")
         wf.setnchannels(CHANNELS)
         wf.setsampwidth(2)
         wf.setframerate(SAMPLE_RATE)
         log_and_save(f"💾 [Cliente {ssrc}] WAV abierto: {name_wav}", "INFO", self.ssrc)
         self.wav_path = name_wav
-        return wf"""
-
-    def create_wav_file(self, ssrc, wav_index=0):
-        import wave, time, re, os
-        from path_utils import resolve_writable_dir, DATA_BASE
-
-        # Sanear nombre de canal para usar en FS
-        safe_channel = re.sub(r'[^A-Za-z0-9._-]+', '_', self.channel_name or "unknown")
-
-        # Preferido: records/<canal> (dentro del repo); Fallback: /home/soflex/data/records/<canal>
-        base_dir_repo = os.path.join(os.path.abspath(os.path.dirname(__file__)), "..", "records")
-        base_dir_repo = os.path.abspath(base_dir_repo)
-        preferred_dir = os.path.join(base_dir_repo, safe_channel)
-
-        records_base  = os.path.join(DATA_BASE, "records")
-        client_dir    = resolve_writable_dir(preferred_dir, records_base)
-
-        if client_dir != preferred_dir:
-            # opcional: loguear que se usó fallback
-            from my_logger import log_and_save
-            log_and_save(f"[records] Sin permisos en {preferred_dir}, usando {client_dir}", "WARN", ssrc)
-
-        name_wav = os.path.join(
-            client_dir,
-            f"record-{time.strftime('%Y%m%d-%H%M%S')}-{ssrc}-{safe_channel}-{wav_index}.wav"
-        )
-
-        wf = wave.open(name_wav, "wb")
-        wf.setnchannels(CHANNELS)
-        wf.setsampwidth(2)
-        wf.setframerate(SAMPLE_RATE)
-
-        from my_logger import log_and_save
-        log_and_save(f"💾 [Cliente {ssrc}] WAV abierto: {name_wav}", "INFO", ssrc)
-
-        self.client_dir = client_dir
-        self.wav_path = name_wav
         return wf
 
+    def eliminar_wavefile(self, wav_path):
+        try:
+            if wav_path and os.path.exists(wav_path):
+                os.remove(wav_path)
+                log_and_save(f"🗑️ Archivo WAV eliminado: {wav_path}", "INFO", self.ssrc)
+        except Exception as e:
+            log_and_save(f"❌ Error al eliminar WAV {wav_path}: {e}", "ERROR", self.ssrc)
 
+    # ------------------------------
+    # Utilidad
+    # ------------------------------
     def extract_channel_name(self, url):
         import re
-        match = re.search(r'youtube\.com/@([^/]+)', url)
         log_and_save(f"🔍 Canal extraído de la URL: {url}", "INFO", self.ssrc)
+        match = re.search(r'youtube\.com/@([^/]+)', url)
         if match:
             canal = match.group(1)
             log_and_save(f"🔍 Canal extraído: {canal}", "INFO", self.ssrc)
             return canal
-        else:
-            log_and_save(f"🔍 Canal extraído: unknown", "INFO", self.ssrc)
-            return "unknown"
+        log_and_save("🔍 Canal extraído: unknown", "INFO", self.ssrc)
+        return "unknown"
 
+    # ------------------------------
+    # RTP
+    # ------------------------------
     def send_rtp_stream_to_jitter(self, data, ssrc, sequence_number):
+        """Parte un bloque PCM en frames y los empuja como RTP al jitter buffer."""
         total_len = len(data)
         offset = 0
-        frame_bytes = FRAME_SIZE * 2
+        frame_bytes = FRAME_SIZE * 2  # 16-bit (2 bytes)
         while offset < total_len:
             frame = data[offset:offset + frame_bytes]
             if not frame:
@@ -146,7 +141,7 @@ class RTPClient:
             sequence_number = (sequence_number + 1) % 65536
             offset += frame_bytes
         return sequence_number
-    
+
     def send_to_jitter(self, rtp_packet):
         if self.last_time is None:
             self.last_time = time.time()
@@ -155,90 +150,148 @@ class RTPClient:
         self.jitter_buffer.add_packet(rtp_packet.sequenceNumber, time.time(), rtp_packet.payload)
 
     def create_rtp_packet(self, payload, sequence_number, ssrc):
-        # Asegurar que payload es bytearray
-        if not isinstance(payload, bytearray):
-            payload = bytearray(payload)
-        
-        # Usar timestamp basado en samples, no en tiempo real
-        timestamp = sequence_number * FRAME_SIZE  # Timestamp basado en samples procesados
-        
-        rtp_packet = RTP(
-            version=RTP_VERSION,  # Usar valor directo 2
-            payloadType=PayloadType.DYNAMIC_96,  # Usar PayloadType enum
-            sequenceNumber=sequence_number,      # camelCase
-            timestamp=timestamp % 2**32,         # Timestamp predecible basado en samples
+        # timestamp basado en samples (estable)
+        timestamp = (sequence_number * FRAME_SIZE) % (2**32)
+        return RTP(
+            version=RTP_VERSION,
+            payloadType=PayloadType.DYNAMIC_96,
+            sequenceNumber=sequence_number,
+            timestamp=timestamp,
             ssrc=ssrc,
-            payload=payload
+            payload=payload if isinstance(payload, bytearray) else bytearray(payload),
         )
-        return rtp_packet
 
+    # ------------------------------
+    # Loop de consumo / segmentación WAV
+    # ------------------------------
     def start_worker_client(self, shutdown_event=None):
         log_and_save(f"[Worker] Iniciado para cliente con SSRC: {self.ssrc}", "INFO", self.ssrc)
-        jitter_buffer = self.jitter_buffer
         if shutdown_event is None:
             shutdown_event = getattr(self, 'shutdown_event', None)
+
         self.wav_start_time = time.time()
+
         while True:
             if shutdown_event and shutdown_event.is_set():
-                log_and_save(f"[Worker] Shutdown event detectado. Cerrando worker SSRC: {self.ssrc}", "INFO", self.ssrc)
+                log_and_save(f"[Worker] Shutdown detectado. SSRC: {self.ssrc}", "INFO", self.ssrc)
                 break
+
             with self.lock:
-                # Esperar a que el jitter buffer tenga prefill suficiente
-                if not jitter_buffer.ready_to_consume():
-                    log_and_save(f"Esperando prefill del Jitter Buffer...", "DEBUG", self.ssrc)
+                # Prefill del jitter
+                if not self.jitter_buffer.ready_to_consume():
+                    log_and_save("Esperando prefill del Jitter Buffer...", "DEBUG", self.ssrc)
                     if self.handle_inactivity(self.ssrc):
                         break
                     time.sleep(0.005)
                     continue
-                        
+
                 next_seq = self.next_seq
-                # Procesar paquetes SOLO mientras el buffer siga listo para consumir
-                while jitter_buffer.ready_to_consume():
-                    packet = jitter_buffer.pop_next(next_seq)
+
+                # Consumir mientras haya material suficiente
+                while self.jitter_buffer.ready_to_consume():
+                    packet = self.jitter_buffer.pop_next(next_seq)
                     if packet is None:
                         break
+
                     now = time.time()
-                    # Lógica de segmentación WAV por tiempo
+
+                    # Segmentación por tiempo
                     if now - self.wav_start_time >= WAV_SEGMENT_SECONDS:
-                        print("DEBUG: enviando a Whisper:", self.wav_path)
+                        # Cerrar WAV actual y notificar al watchdog
                         if self.wavefile:
-                            self.wavefile.close()
+                            try:
+                                self.wavefile.close()
+                            except Exception:
+                                pass
+
                         if self.wav_path:
-                            #self.send_to_whisper(self.wav_path)
-                            log_and_save(f"✅ Enviado {self.wav_path} para transcripción.", "INFO", self.ssrc)
-                            #self.energy_watchdog.notify_wav_ready(self.wav_path)
-                            #self.semaphore_watchdog.acquire()  # Notificar al watchdog que hubo actividad
-                            # Eliminación del wavefile después de enviar a Whisper
-                            #self.eliminar_wavefile(self.wav_path)
+                            log_and_save(f"✅ Enviando {self.wav_path} al watchdog de energía", "INFO", self.ssrc)
+                            try:
+                                self.energy_watchdog.notify_wav_ready(self.wav_path)
+                                # Evita bloquearte si el watchdog tarda: timeout breve y log
+                                if not self.semaphore_watchdog.acquire(timeout=10):
+                                    log_and_save("⌛ Watchdog no respondió a tiempo (10s). Continuo.", "WARN", self.ssrc)
+                            except Exception as e:
+                                log_and_save(f"❌ Error notificando watchdog: {e}", "ERROR", self.ssrc)
+
+                        # Abrir el siguiente segmento
                         self.wavefile = None
                         self.wav_path = None
                         gc.collect()
                         self.wav_index += 1
                         self.wavefile = self.create_wav_file(self.ssrc, wav_index=self.wav_index)
                         self.wav_start_time = time.time()
-                        log_and_save(f"[Segmentación] Nuevo archivo WAV para {self.ssrc}, segmento {self.wav_index}", "INFO", self.ssrc)
+                        log_and_save(f"[Segmentación] Nuevo WAV segmento {self.wav_index}", "INFO", self.ssrc)
 
+                    # Escribir frames
                     if self.wavefile:
                         self.wavefile.writeframes(packet["payload"])
+
+                    # Actualizar actividad
                     if not packet.get("is_silence", False):
                         self.last_time = now
+
                     next_seq = (next_seq + 1) % 65536
+
                 self.next_seq = next_seq
 
                 if self.handle_inactivity(self.ssrc):
                     break
+
             time.sleep(0.005)
-    
-    def eliminar_wavefile(self, wav_path):
-        import os
+
+        # Salida limpia
+        self.cleanup()
+
+    # ------------------------------
+    # Inactividad / Cleanup
+    # ------------------------------
+    def handle_inactivity(self, ssrc):
+        """
+        Si no hay audio por INACTIVITY_TIMEOUT, cerramos recursos del cliente.
+        """
+        if self.last_time is None:
+            return False
+        if time.time() - self.last_time > INACTIVITY_TIMEOUT:
+            try:
+                log_and_save(f"[Worker] Cliente {self.ssrc} inactivo por {INACTIVITY_TIMEOUT}s, cerrando.", "INFO", self.ssrc)
+                self.cleanup()
+                log_and_save(f"[Worker] Cliente {self.ssrc} recursos liberados.", "INFO", self.ssrc)
+            except Exception as e:
+                log_and_save(f"[Worker] Error en cleanup: {e}", "ERROR", self.ssrc)
+            return True
+        return False
+
+    def cleanup(self):
+        """Cierra archivos y libera recursos del cliente RTP."""
         try:
-            if wav_path and os.path.exists(wav_path):
-                os.remove(wav_path)
-                log_and_save(f"🗑️ Archivo WAV eliminado: {wav_path}", "INFO", self.ssrc)
-        except Exception as e:
-            log_and_save(f"❌ Error al eliminar WAV {wav_path}: {e}", "ERROR", self.ssrc)
+            if self.wavefile:
+                try:
+                    self.wavefile.close()
+                except Exception:
+                    pass
+                # Opcional: eliminar el último WAV parcial si querés
+                # self.eliminar_wavefile(self.wav_path)
+            self.wavefile = None
+            self.jitter_buffer = None
+            # Si en algún momento instanciás TranscriptionClient, cerralo aquí:
+            try:
+                if self.transcription_client:
+                    self.transcription_client.close()
+            except Exception:
+                pass
+            # Apagar watchdog
+            try:
+                self.energy_watchdog.stop()
+            except Exception:
+                pass
+        finally:
+            gc.collect()
+            log_and_save(f"[Cleanup] Recursos liberados para SSRC: {self.ssrc}", "INFO", self.ssrc)
 
-
+    # ------------------------------
+    # (Opcional) Envío a Whisper mock
+    # ------------------------------
     def send_to_whisper(self, wav_path: str):
         import requests
         url = MOCK_API_TRANSCRIBE
@@ -247,51 +300,14 @@ class RTPClient:
             "target_language": "es",
             "task": "asr",
             "model": "v2",
-            # "gpu_id": "0"  # solo si quieres especificar GPU
         }
         with open(wav_path, "rb") as f:
-            files = {"audio": (wav_path, f, "audio/wav")}
+            files = {"audio": (os.path.basename(wav_path), f, "audio/wav")}
             response = requests.post(url, params=params, files=files)
 
         if response.status_code == 200:
             data = response.json()
-            print(f"\n✅ Transcripción completa de {wav_path}:")
-            # Enviar por WebSocket
             self.transcription_client.send_transcription(data.get("transcription", ""))
+            log_and_save(f"📝 Transcrito {wav_path}", "INFO", self.ssrc)
         else:
-            print(f"❌ Error {response.status_code}: {response.text}")
-
-
-    def cleanup(self):
-        """Cierra archivos y libera recursos del cliente RTP."""
-        # with self.lock:
-        if self.wavefile:
-            try:
-                self.wavefile.close()
-                self.eliminar_wavefile(self.wav_path)
-            except Exception:
-                pass
-            self.wavefile = None
-        self.jitter_buffer = None
-        self.transcription_client.close()
-        gc.collect()
-        log_and_save(f"[Cleanup] Recursos liberados para cliente SSRC: {self.ssrc}", "INFO", self.ssrc)
-
-    def handle_inactivity(self, ssrc):
-        """
-        Maneja la inactividad de un cliente, cerrando su archivo WAV si ha estado inactivo durante más de INACTIVITY_TIMEOUT segundos.
-        """
-        if self.last_time is None:
-            return False
-        if time.time() - self.last_time > INACTIVITY_TIMEOUT:
-            try:
-                log_and_save(f"[Worker] Cliente {self.ssrc} inactivo por {INACTIVITY_TIMEOUT}s, cerrando recursos.", "INFO", self.ssrc)
-                self.cleanup()
-                log_and_save(f"[Worker] Cliente {self.ssrc} inactivo por {INACTIVITY_TIMEOUT}s, recursos liberados.", "INFO", self.ssrc)
-            except Exception as e:
-                log_and_save(f"[Worker] Error en cleanup de cliente {self.ssrc}: {e}", "ERROR", self.ssrc)
-            return True
-        return False
-
-
-
+            log_and_save(f"❌ Whisper {response.status_code}: {response.text}", "ERROR", self.ssrc)

@@ -1,0 +1,24 @@
+version: "3.9"
+
+services:
+  soflex-desktop:
+    image: soflex-desktop        # o cambialo por tu tag real
+    container_name: soflex1
+    # Si preferís construir acá, reemplazá "image" por:
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+    ports:
+      - "5900:5900"              # VNC
+    environment:
+      AUTO_START: "1"            # 1 = lanza la app Python al iniciar
+      OPEN_URL: "https://youtube.com/@todonoticias/live"
+      BROWSER: "firefox"         # firefox | chrome
+      APP_ARGS: "https://youtube.com/@todonoticias/live firefox ffmpeg"
+    volumes:
+      - ./:/home/soflex/Escritorio/Soflex/audio-automatizado-api-transcript
+      - ./start.sh:/start.sh
+    # Útil en dev para que se reinicie si algo crashea
+    restart: unless-stopped
+    # Opcional: que tenga siempre pseudo‐TTY para ver logs "en vivo"
+    tty: true

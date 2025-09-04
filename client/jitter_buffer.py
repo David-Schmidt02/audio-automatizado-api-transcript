@@ -5,69 +5,90 @@ import time
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, parent_dir)
 from my_logger import log_and_save
-from config import JITTER_BUFFER_SIZE, MAX_WAIT, FRAME_SIZE, JITTER_BUFFER_SIZE
-
+from config import JITTER_BUFFER_SIZE, MAX_WAIT, FRAME_SIZE, CHANNELS
 
 class JitterBuffer:
-    def __init__(self, ssrc, jt_bf_size = JITTER_BUFFER_SIZE, max_wait=0.5):
+    """
+    Versión simple:
+      - Prefill por tamaño (JITTER_BUFFER_SIZE)
+      - Lleva expected_seq internamente
+      - Inyecta silencio después de MAX_WAIT si falta el paquete esperado
+    """
+    def __init__(self, ssrc, jt_bf_size=JITTER_BUFFER_SIZE, max_wait=MAX_WAIT):
         self.ssrc = ssrc
-        self.buffer = {}  # seq_num -> (timestamp, payload)
-        self.prefill_min = JITTER_BUFFER_SIZE
+        self.buffer = {}              # seq_num -> (arrival_ts, payload)
+        self.prefill_min = jt_bf_size
         self.prefill_done = False
         self.max_wait = max_wait
-        self.last_seq_time = None  # (seq_num, time.time())
-        self.expected_timestamp = None
 
-    def add_packet(self, seq_num, timestamp, payload):
+        self.expected_seq = None
+        self.last_seq_time = None     # (seq, time)
+        self.missing_since = None
+
+    def _seq_inc(self, x): return (x + 1) & 0xFFFF
+
+    def add_packet(self, seq_num, arrival_ts, payload):
         if seq_num % 1000 == 0:
             log_and_save(f"[JitterBuffer] Paquete N° {seq_num} añadido", "DEBUG", self.ssrc)
-            log_and_save(f"[JitterBuffer] Tamaño del buffer tras añadir: {len(self.buffer)}", "DEBUG", self.ssrc)
-        self.buffer[seq_num] = (timestamp, payload)
-        # Opcional: actualizar expected_timestamp si es el primer paquete
-        if self.expected_timestamp is None:
-            self.expected_timestamp = timestamp
 
-    def ready_to_consume(self):
+        if self.expected_seq is None:
+            self.expected_seq = seq_num
+
+        self.buffer[seq_num] = (arrival_ts, payload)
+
         if not self.prefill_done and len(self.buffer) >= self.prefill_min:
             self.prefill_done = True
             log_and_save(f"[JitterBuffer] Prefill completado con {len(self.buffer)} paquetes", "INFO", self.ssrc)
+
+    def ready_to_consume(self):
         return self.prefill_done
 
-    def pop_next(self, next_seq):
+    def pop_next(self, next_seq=None):
+        """
+        Si `next_seq` viene del caller, lo usamos; si no, usamos `expected_seq`.
+        Devuelve:
+          - {"payload": ..., "is_silence": False} si llegó el esperado
+          - {"payload": silencio, "is_silence": True} si se venció MAX_WAIT
+          - None si hay que esperar
+        """
+        frame_bytes = FRAME_SIZE * CHANNELS * 2
         now = time.time()
-        # Si el paquete esperado está, lo devolvemos
-        if next_seq in self.buffer:
-            timestamp, payload = self.buffer.pop(next_seq)
-            self.last_seq_time = (next_seq, now)
-            self.expected_timestamp = timestamp  # Actualiza el timestamp esperado
-            return {"payload": payload, "is_silence": False}
-        # Si no está, pero ya esperamos suficiente, insertamos silencio
-        elif self.last_seq_time and (now - self.last_seq_time[1]) > self.max_wait:
-            # Avanzamos secuencia y timestamp esperado
-            self.last_seq_time = (next_seq, now)
-            if self.expected_timestamp is not None:
-                self.expected_timestamp += 960  # Ejemplo: 20ms a 48kHz = 960 samples
-            silence = b'\x00' * 2 * 960  # 2 bytes por sample, 960 samples (ajusta según tu frame)
-            return {"payload": silence, "is_silence": True}
+
+        if next_seq is None:
+            next_seq = self.expected_seq
         else:
-            return None  # Esperar más
+            # sincronizar el interno si el caller avanza
+            self.expected_seq = next_seq if self.expected_seq is None else self.expected_seq
+
+        if self.expected_seq is None or not self.prefill_done:
+            return None
+
+        # Llego el esperado
+        if self.expected_seq in self.buffer:
+            _, payload = self.buffer.pop(self.expected_seq)
+            self.last_seq_time = (self.expected_seq, now)
+            self.missing_since = None
+            self.expected_seq = self._seq_inc(self.expected_seq)
+            return {"payload": payload, "is_silence": False}
+
+        # Falta el esperado: medir espera
+        if self.missing_since is None:
+            self.missing_since = now
+            return None
+
+        if (now - self.missing_since) > self.max_wait:
+            # Inyectar silencio de un frame y avanzar
+            self.last_seq_time = (self.expected_seq, now)
+            self.missing_since = None
+            self.expected_seq = self._seq_inc(self.expected_seq)
+            return {"payload": b"\x00" * frame_bytes, "is_silence": True}
+
+        return None
 
     def get_size(self):
         return len(self.buffer)
 
-    # Opcional: descartar paquetes muy viejos según timestamp
     def discard_old(self, current_timestamp):
-        to_remove = [seq for seq, (ts, _) in self.buffer.items() if ts < current_timestamp - 10 * 960]
+        to_remove = [seq for seq, (ts, _) in self.buffer.items() if ts < current_timestamp - 10]
         for seq in to_remove:
             del self.buffer[seq]
-
-# --- Jitter buffer configurable ---
-
-def check_prefill(buffer, prefill_done, client_id):
-    """
-    Verifica si el pre-llenado del jitter buffer ha sido completado.
-    """
-    if not prefill_done and len(buffer) > 0:
-        log_and_save(f"[JitterBuffer] Cliente {client_id}: pre-llenado completado con {len(buffer)} paquetes", "INFO", client_id)
-        return True
-    return prefill_done
