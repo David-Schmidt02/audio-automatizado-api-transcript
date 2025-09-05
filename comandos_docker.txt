@@ -9,8 +9,11 @@ docker ps
 docker ps -a
 docker images
 
-# VER Remmina
+# VER Remmina -> Linux
 G_MESSAGES_DEBUG=remmina remmina -c vnc://localhost:5900
+
+# Ver TigerVNC -> Windows
+vncviewer localhost:5900
 
 # Comandos útiles para Docker
 

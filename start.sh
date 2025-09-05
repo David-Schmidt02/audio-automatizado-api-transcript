@@ -1,3 +1,17 @@
+
+# =============================================
+# Este script se ejecuta SIEMPRE dentro de un contenedor Linux (Docker),
+# sin importar si el host es Windows o Linux.
+#
+# No es necesario modificar nada según el host.
+#
+# Requisitos:
+#   - Mantener finales de línea LF (no CRLF)
+#   - No modificar el shebang ni los comandos
+#   - Los volúmenes deben mapearse correctamente en docker-compose.yml
+#
+# Si alguna vez necesitas ejecutarlo fuera de Docker, descomenta y adapta según corresponda.
+# =============================================
 #!/bin/bash
 set -euo pipefail
 
@@ -73,14 +87,14 @@ as_user "
   x11vnc $VNC_ARGS >\"$LOG_DIR/x11vnc.log\" 2>&1 &
 "
 
-# ========= (Opcional) abrir navegador al levantar =========
-if [ -n "$OPEN_URL" ]; then
-  case "$BROWSER" in
-    firefox) as_user "DISPLAY=:0 PULSE_SERVER=unix:$PA_SOCK firefox '$OPEN_URL' >/dev/null 2>&1 &" ;;
-    chrome)  as_user "DISPLAY=:0 PULSE_SERVER=unix:$PA_SOCK google-chrome-wrapper '$OPEN_URL' >/dev/null 2>&1 &" ;;
-    *)       echo "[WARN] BROWSER desconocido: $BROWSER" ;;
-  esac
-fi
+# Esperar unos segundos antes de lanzar el navegador
+sleep 5
+
+# Lanzar el navegador (ajusta el comando según tu preferencia)
+#as_user "DISPLAY=:0 PULSE_SERVER=unix:$PA_SOCK firefox 'https://youtube.com/' >/dev/null 2>&1 &"
+
+# Esperar a que el navegador inicie completamente
+sleep 5
 
 # ========= Lanzar tu app Python automáticamente (como soflex) =========
 if [ -z "${VENV_PY}" ] || [ ! -x "${VENV_PY}" ]; then

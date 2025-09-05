@@ -126,8 +126,8 @@
 
         function connectWS() {
             cleanupWS(); // Asegura que no quedan conexiones viejas
-            //ws = new WebSocket("ws://172.21.100.2:8765");
-            ws = new WebSocket("ws://192.168.0.225:8765");
+            ws = new WebSocket("ws://172.21.100.2:8765");
+            //ws = new WebSocket("ws://192.168.0.225:8765");
 
             ws.onopen = () => {
                 wsReady = true;

@@ -4,6 +4,7 @@ import threading
 import time
 import websocket
 from config import WS_SERVER_URL
+from my_logger import log_and_save
 
 class TranscriptionClient:
     def __init__(self, client_id, channel_name, url=None):
@@ -49,7 +50,22 @@ class TranscriptionClient:
         try:
             self.ws.send(json.dumps(payload))
         except Exception as e:
-            print(f"Error enviando: {e}")
+            log_and_save(f"Error enviando: {e}. Intentando reconectar...", "ERROR", self.client_id)
+            try:
+                self.reconnect_ws()  # Debes tener un método que reconecte el websocket
+                self.ws.send(json.dumps(payload))
+                log_and_save("Reenvío exitoso tras reconexión.", "INFO", self.client_id)
+            except Exception as e2:
+                log_and_save(f"Error al reenviar tras reconexión: {e2}", "ERROR", self.client_id)
+    def reconnect_ws(self):
+        try:
+            if self.ws:
+                self.ws.close()
+            time.sleep(1)  # Espera breve antes de reconectar
+            self._connect()
+            log_and_save("Reconexión WebSocket exitosa.", "INFO", self.client_id)
+        except Exception as e:
+            log_and_save(f"Error al reconectar WebSocket: {e}", "ERROR", self.client_id)
 
     def close(self):
         self.ws.close()

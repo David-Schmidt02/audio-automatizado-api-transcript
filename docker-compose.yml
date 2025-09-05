@@ -23,13 +23,19 @@ services:
       LC_ALL: "C.UTF-8"
 
     volumes:
-      # Montás tu repo (modo dev)
-      - ./:/home/soflex/Escritorio/Soflex/audio-automatizado-api-transcript:rw
-      - ./start.sh:/start.sh:ro
+  # Montás tu repo (modo dev)
+  # - ./:/home/soflex/Escritorio/Soflex/audio-automatizado-api-transcript:rw
+  # - ./start.sh:/start.sh:ro
 
-      # Logs y grabaciones persistentes fuera del contenedor
-      - ./_logs:/home/soflex/logs:rw
-      - ./_records:/home/soflex/Escritorio/Soflex/audio-automatizado-api-transcript/records:rw
+  # Logs y grabaciones persistentes fuera del contenedor
+  # - ./_logs:/home/soflex/logs:rw
+  # - ./_records:/home/soflex/Escritorio/Soflex/audio-automatizado-api-transcript/records:rw
+
+  # Volúmenes para Windows (usar rutas absolutas)
+    - C:/Users/David/Soflex/audio-automatizado-api-transcript:/home/soflex/Escritorio/Soflex/audio-automatizado-api-transcript:rw
+    - C:/Users/David/Soflex/audio-automatizado-api-transcript/start.sh:/start.sh:ro
+    - C:/Users/David/Soflex/audio-automatizado-api-transcript/_logs:/home/soflex/logs:rw
+    - C:/Users/David/Soflex/audio-automatizado-api-transcript/_records:/home/soflex/Escritorio/Soflex/audio-automatizado-api-transcript/records:rw
 
     # Para Chrome/Firefox (evita glitches por /dev/shm chico)
     shm_size: "1gb"
