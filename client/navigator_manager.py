@@ -4,6 +4,8 @@ import random
 import sys
 import tempfile
 import psutil
+import time
+import shutil
 
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, parent_dir)
@@ -83,6 +85,8 @@ class Navigator():
         try:
             self.browser_process = subprocess.Popen(cmd, env=env)
             log_and_save(f"✅ Firefox launched successfully", "INFO", self.ssrc)
+            # Intento de auto-play: enviar tecla 'k' (YouTube play/pause)
+            self._try_autoplay(env, app_class="firefox")
             return self.browser_process
         except Exception as e:
             log_and_save(f"❌ Error lanzando Firefox: {e}", "ERROR", self.ssrc)
@@ -107,6 +111,96 @@ class Navigator():
             + [url]
         )
         return subprocess.Popen(cmd, env=env)
+
+    def _try_autoplay(self, env, app_class: str = None):
+        """Intenta simular 'play' con xdotool: activa la ventana del navegador y envía 'k'."""
+        try:
+            if not shutil.which("xdotool"):
+                log_and_save("[Autoplay] xdotool no encontrado; omitiendo auto-play.", "WARN", self.ssrc)
+                return
+            # Esperar a que la ventana aparezca
+            time.sleep(2)
+            search_cmd = ["xdotool", "search", "--onlyvisible"]
+            if app_class:
+                search_cmd += ["--class", app_class]
+            else:
+                search_cmd += ["--name", self.navigator_name]
+            # Buscar ventana
+            res = subprocess.run(search_cmd, env=env, capture_output=True, text=True)
+            if res.returncode != 0 or not res.stdout.strip():
+                log_and_save("[Autoplay] No se encontró ventana para auto-play.", "WARN", self.ssrc)
+                return
+            win_id = res.stdout.strip().splitlines()[-1]
+            # Activar ventana y enviar 'k'
+            subprocess.run(["xdotool", "windowactivate", "--sync", win_id], env=env)
+            time.sleep(0.2)
+            subprocess.run(["xdotool", "key", "k"], env=env)
+            log_and_save("[Autoplay] Tecla 'k' enviada para reproducir.", "INFO", self.ssrc)
+        except Exception as e:
+            log_and_save(f"[Autoplay] Error intentando auto-play: {e}", "WARN", self.ssrc)
+
+    def _graceful_close_windows(self):
+        """Intenta cerrar el navegador como un usuario: windowclose/Alt+F4 con xdotool."""
+        try:
+            if not self.browser_process or self.browser_process.poll() is not None:
+                return True
+            if not shutil.which("xdotool"):
+                log_and_save("[Close] xdotool no encontrado; no se puede cerrar amigablemente.", "WARN", self.ssrc)
+                return False
+
+            env = os.environ.copy()
+            pid = self.browser_process.pid
+            # Buscar ventanas por PID (más preciso)
+            res = subprocess.run(["xdotool", "search", "--onlyvisible", "--pid", str(pid)],
+                                 env=env, capture_output=True, text=True)
+            win_ids = []
+            if res.returncode == 0 and res.stdout.strip():
+                win_ids = [w for w in res.stdout.strip().splitlines() if w.strip()]
+            else:
+                # Fallback por clase/nombre
+                search_cmd = ["xdotool", "search", "--onlyvisible"]
+                if self.navigator_name.lower() == "firefox":
+                    search_cmd += ["--class", "firefox"]
+                elif self.navigator_name.lower() == "chrome":
+                    search_cmd += ["--class", "google-chrome"]
+                else:
+                    search_cmd += ["--name", self.navigator_name]
+                res2 = subprocess.run(search_cmd, env=env, capture_output=True, text=True)
+                if res2.returncode == 0 and res2.stdout.strip():
+                    win_ids = [w for w in res2.stdout.strip().splitlines() if w.strip()]
+
+            if not win_ids:
+                log_and_save("[Close] No se encontraron ventanas visibles para cerrar.", "WARN", self.ssrc)
+                return False
+
+            # Intentar cerrar cada ventana del proceso
+            for wid in win_ids:
+                subprocess.run(["xdotool", "windowactivate", "--sync", wid], env=env)
+                # Intento 1: WM_DELETE
+                subprocess.run(["xdotool", "windowclose", wid], env=env)
+                time.sleep(0.2)
+            # Esperar hasta 3s a que termine el proceso
+            for _ in range(15):
+                if self.browser_process.poll() is not None:
+                    log_and_save("[Close] Navegador cerrado amigablemente (windowclose).", "INFO", self.ssrc)
+                    return True
+                time.sleep(0.2)
+
+            # Intento 2: Alt+F4 por si alguna ventana insiste
+            for wid in win_ids:
+                subprocess.run(["xdotool", "windowactivate", "--sync", wid], env=env)
+                subprocess.run(["xdotool", "key", "Alt+F4"], env=env)
+                time.sleep(0.2)
+            for _ in range(15):
+                if self.browser_process.poll() is not None:
+                    log_and_save("[Close] Navegador cerrado con Alt+F4.", "INFO", self.ssrc)
+                    return True
+                time.sleep(0.2)
+
+            return False
+        except Exception as e:
+            log_and_save(f"[Close] Error en cierre amigable: {e}", "WARN", self.ssrc)
+            return False
 
     def terminate_child_processes(self, browser_process):
         if browser_process.poll() is None:  # el padre sigue vivo
@@ -144,15 +238,22 @@ class Navigator():
             log_and_save(f"Proceso de navegador: {self.browser_process.pid}", "INFO", self.ssrc)
 
             try:
-                # 1. primero los hijos
-                self.terminate_child_processes(self.browser_process)
+                # 1. Intento amable vía xdotool (WM_DELETE / Alt+F4)
+                closed = self._graceful_close_windows()
+                if closed:
+                    return
 
-                # 2. ahora el padre
-                self.browser_process.terminate()
-                try:
-                    self.browser_process.communicate(timeout=5)
-                except Exception:
-                    pass
+                # 2. Señal suave al proceso principal
+                if self.browser_process.poll() is None:
+                    self.browser_process.terminate()
+                    try:
+                        self.browser_process.communicate(timeout=5)
+                    except Exception:
+                        pass
+
+                # 3. Si aún quedan hijos colgados, limpiarlos
+                if self.browser_process.poll() is None:
+                    self.terminate_child_processes(self.browser_process)
 
             except Exception as e:
                 log_and_save(f"⚠️ Failed to terminate navegador: {e}", "ERROR", self.ssrc)

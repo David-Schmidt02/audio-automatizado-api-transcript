@@ -33,16 +33,21 @@ def log(message, level="INFO"):
         "HEADER": Colors.BLUE + Colors.BOLD
     }
     color = color_map.get(level, Colors.WHITE)
-    print(f"{color}[{timestamp}] [{level}] {message}{Colors.END}")
+    line = f"[{timestamp}] [{level}] {message}"
+    print(f"{color}{line}{Colors.END}")
+    return line
 
+
+LOG_DIR = os.environ.get("SOFLEX_LOGDIR", "/home/soflex/logs")
+os.makedirs(LOG_DIR, exist_ok=True)
 
 def log_and_save(message, level, ssrc):
-    """Imprime con color y persiste en client/logs/<ssrc>-client.log"""
-    log(message, level)
+    """Loguea con color, guarda en archivo global y en archivo por cliente."""
+    line = log(message, level)
+    # Archivo específico del cliente (client/logs/<ssrc>-client.log)
     base_dir = os.path.abspath(os.path.dirname(__file__))
-    log_dir = os.path.join(base_dir, "client", "logs")
-    if not os.path.exists(log_dir):
-        os.makedirs(log_dir, exist_ok=True)
-    log_file = os.path.join(log_dir, f"{ssrc}-client.log")
-    with open(log_file, "a", encoding="utf-8") as f:
-        f.write(f"[{level}] {message}\n")
+    client_log_dir = os.path.join(base_dir, "client", "logs")
+    os.makedirs(client_log_dir, exist_ok=True)
+    client_log_file = os.path.join(client_log_dir, f"{ssrc}-client.log")
+    with open(client_log_file, "a", encoding="utf-8") as f:
+        f.write(line + "\n")

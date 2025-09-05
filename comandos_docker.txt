@@ -9,6 +9,9 @@ docker ps
 docker ps -a
 docker images
 
+# VER Remmina
+G_MESSAGES_DEBUG=remmina remmina -c vnc://localhost:5900
+
 # Comandos útiles para Docker
 
 # Construir la imagen

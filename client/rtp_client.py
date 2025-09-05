@@ -8,6 +8,7 @@ import time
 from rtp import RTP, PayloadType
 from jitter_buffer import JitterBuffer
 from energy_watchdog import EnergyWatchdog
+from transcription_client import TranscriptionClient
 
 # Rutas / imports locales
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -49,7 +50,7 @@ class RTPClient:
         self.wav_index = 0
 
         # Inicializar después de definir todos los atributos
-        self.transcription_client = None  # se crea sólo cuando lo uses
+        self.transcription_client = TranscriptionClient(ssrc, self.channel_name)
         self.semaphore_watchdog = threading.Semaphore(0)
         self.energy_watchdog = EnergyWatchdog(
             semaphore=self.semaphore_watchdog,
@@ -215,6 +216,8 @@ class RTPClient:
                                 log_and_save(f"❌ Error notificando watchdog: {e}", "ERROR", self.ssrc)
 
                         # Abrir el siguiente segmento
+                        self.send_to_whisper(self.wav_path)
+                        self.eliminar_wavefile(self.wav_path)
                         self.wavefile = None
                         self.wav_path = None
                         gc.collect()
@@ -271,7 +274,8 @@ class RTPClient:
                 except Exception:
                     pass
                 # Opcional: eliminar el último WAV parcial si querés
-                # self.eliminar_wavefile(self.wav_path)
+                #self.send_to_whisper(self.wav_path)  
+                self.eliminar_wavefile(self.wav_path)
             self.wavefile = None
             self.jitter_buffer = None
             # Si en algún momento instanciás TranscriptionClient, cerralo aquí:
@@ -301,6 +305,7 @@ class RTPClient:
             "task": "asr",
             "model": "v2",
         }
+        log_and_save(f"📝 Enviando {wav_path} a Whisper mock...", "INFO", self.ssrc)
         with open(wav_path, "rb") as f:
             files = {"audio": (os.path.basename(wav_path), f, "audio/wav")}
             response = requests.post(url, params=params, files=files)

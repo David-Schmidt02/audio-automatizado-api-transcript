@@ -6,6 +6,12 @@ client/__pycache__/
 # Audios generados
 *.wav
 
+# Logs generados
+*.log
+
+# Deb
+*.deb
+
 # Python
 *.pyc
 *.pyo

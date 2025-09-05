@@ -1,24 +1,45 @@
-version: "3.9"
-
 services:
   soflex-desktop:
-    image: soflex-desktop        # o cambialo por tu tag real
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: soflex-desktop        # le da un nombre fijo a la imagen
     container_name: soflex1
-    # Si preferís construir acá, reemplazá "image" por:
-    # build:
-    #   context: .
-    #   dockerfile: Dockerfile
+
     ports:
       - "5900:5900"              # VNC
+
     environment:
-      AUTO_START: "1"            # 1 = lanza la app Python al iniciar
+      # Arranque automático del script Python
+      AUTO_START: "1"
+      # Abrir también el browser al inicio (opcional)
       OPEN_URL: "https://youtube.com/@todonoticias/live"
       BROWSER: "firefox"         # firefox | chrome
+      # Parámetros que tu app espera (url navegador ffmpeg|gstreamer)
       APP_ARGS: "https://youtube.com/@todonoticias/live firefox ffmpeg"
+
+      # Forzar locale si XFCE se queja
+      LANG: "C.UTF-8"
+      LC_ALL: "C.UTF-8"
+
     volumes:
-      - ./:/home/soflex/Escritorio/Soflex/audio-automatizado-api-transcript
-      - ./start.sh:/start.sh
-    # Útil en dev para que se reinicie si algo crashea
+      # Montás tu repo (modo dev)
+      - ./:/home/soflex/Escritorio/Soflex/audio-automatizado-api-transcript:rw
+      - ./start.sh:/start.sh:ro
+
+      # Logs y grabaciones persistentes fuera del contenedor
+      - ./_logs:/home/soflex/logs:rw
+      - ./_records:/home/soflex/Escritorio/Soflex/audio-automatizado-api-transcript/records:rw
+
+    # Para Chrome/Firefox (evita glitches por /dev/shm chico)
+    shm_size: "1gb"
+
     restart: unless-stopped
-    # Opcional: que tenga siempre pseudo‐TTY para ver logs "en vivo"
     tty: true
+
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'Xvfb :0' >/dev/null && pgrep -f 'x11vnc .*:0' >/dev/null"]
+      interval: 20s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
